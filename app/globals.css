@@ -31,9 +31,10 @@ input{font-family:inherit;}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 0 10px;}
 .logo{font-size:30px;line-height:.82;color:var(--cream);text-shadow:2.5px 2.5px 0 var(--red);}
 .logo small{display:block;font-family:'Inter';font-weight:600;font-size:8.5px;letter-spacing:.24em;color:var(--gold);margin-top:5px;}
-.stats{display:flex;gap:7px;}
+.stats{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
 .pill{display:inline-flex;align-items:center;gap:5px;background:var(--cream);border:2px solid var(--navy);
-  border-radius:9px;padding:5px 9px;font-weight:800;font-size:13px;box-shadow:2px 2px 0 var(--navy);color:var(--navy);}
+  border-radius:9px;padding:5px 9px;font-weight:800;font-size:13px;box-shadow:2px 2px 0 var(--navy);color:var(--navy);white-space:nowrap;}
+.pill.lives{min-width:auto;letter-spacing:1px;padding:5px 11px;}
 .coin{width:13px;height:13px;border-radius:50%;background:var(--gold);box-shadow:inset -2px -2px 0 rgba(0,0,0,.15);}
 
 /* card + stickers */

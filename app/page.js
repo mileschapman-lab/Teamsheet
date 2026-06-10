@@ -14,6 +14,30 @@ import {
 import { ECONOMY, valuePerPound } from "../lib/economy";
 
 const DIFFC = { easy: "var(--grass)", medium: "var(--gold)", hard: "var(--red)" };
+
+// Flag emoji → ISO code, so we can render real flag images (Windows browsers
+// don't render flag emoji — they show letter pairs). flagcdn serves PNGs.
+const FLAG_CODE = {
+  "🏴": "gb-eng", "🇫🇷": "fr", "🇳🇱": "nl", "🇷🇸": "rs", "🇮🇪": "ie",
+  "🇨🇿": "cz", "🇩🇪": "de", "🇪🇸": "es", "🇺🇾": "uy", "🇸🇳": "sn",
+  "🇧🇪": "be", "🇦🇷": "ar", "🇨🇮": "ci", "🇪🇬": "eg", "🇫🇮": "fi",
+  "🇰🇷": "kr", "🇭🇷": "hr", "🇩🇰": "dk", "🇸🇪": "se", "🇩🇿": "dz", "🇹🇬": "tg",
+  "🇦🇺": "au", "🇧🇦": "ba", "🇧🇷": "br", "🇬🇭": "gh", "🇵🇹": "pt",
+};
+function Flag({ emoji, size = 30 }) {
+  const code = FLAG_CODE[emoji];
+  if (!code) return <span style={{ fontSize: size * 0.7 }}>{emoji}</span>;
+  return (
+    <img
+      src={`https://flagcdn.com/h40/${code}.png`}
+      alt=""
+      width={size}
+      height={size * 0.67}
+      style={{ borderRadius: 3, objectFit: "cover", display: "block" }}
+      loading="lazy"
+    />
+  );
+}
 const LS = "teamsheet:v1"; // localStorage key for the whole profile
 
 function loadProfile() {
@@ -68,13 +92,13 @@ export default function Page() {
     <div className="wrap">
       <Header profile={profile} />
       <div className="tabs">
-        {["daily", "levels", "practice", "store", "stats"].map((t) => (
+        {["daily", "levels", "competitions", "store", "stats"].map((t) => (
           <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
       {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} />}
       {tab === "levels" && <Levels profile={profile} setProfile={setProfile} />}
-      {tab === "practice" && <Practice profile={profile} setProfile={setProfile} />}
+      {tab === "competitions" && <Competitions />}
       {tab === "store" && <Store profile={profile} setProfile={setProfile} />}
       {tab === "stats" && <Stats profile={profile} />}
     </div>
@@ -86,7 +110,7 @@ function Header({ profile }) {
     <div className="hdr">
       <div className="logo disp">THE TEAM SHEET<small>★ THE DAILY FOOTBALL CONNECTIONS GAME ★</small></div>
       <div className="stats">
-        <span className="pill">{"❤️".repeat(Math.max(0, profile.lives))}{profile.lives === 0 ? "🖤" : ""}</span>
+        <span className="pill lives">❤️ {profile.lives}/{MAX_LIVES}</span>
         <span className="pill"><span className="coin" />{profile.coins}</span>
         <span className="pill">🔥 {profile.streak}</span>
       </div>
@@ -99,7 +123,7 @@ function Onboarding({ onStart }) {
     <div className="ob paper">
       <h2>HOW TO PLAY</h2>
       <div className="step"><span className="n">1</span><div className="t"><b>Read the team sheet</b><p>You're shown three real footballers — like cards in a sticker album.</p></div></div>
-      <div className="step"><span className="n">2</span><div className="t"><b>Name the missing sticker</b><p>One player was a teammate of all three. Type their name — pick from the list.</p></div></div>
+      <div className="step"><span className="n">2</span><div className="t"><b>Name the missing player</b><p>One player was a teammate of all three. Type their name — pick from the list.</p></div></div>
       <div className="step"><span className="n">3</span><div className="t"><b>Any correct link counts</b><p>If more than one player genuinely links all three, any of them is accepted.</p></div></div>
       <div className="step"><span className="n">4</span><div className="t"><b>Come back daily</b><p>Three new puzzles every day. Keep your streak alive and collect stickers.</p></div></div>
       <button className="big" onClick={onStart} style={{ marginTop: 16 }}>START PLAYING →</button>
@@ -143,8 +167,13 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
       {header}
       <div className="card paper" style={{ animation: shake ? "shake .42s" : "none" }}>
         <div className="center" style={{ marginBottom: 14 }}>
-          <div className="disp" style={{ fontSize: 23, color: "var(--navy)" }}>FIND THE MISSING STICKER</div>
-          <div className="muted" style={{ marginTop: 6 }}>One player played with <b style={{ color: "var(--navy)" }}>all three</b>. Who completes the page?</div>
+          <div className="disp" style={{ fontSize: 23, color: "var(--navy)" }}>FIND THE MISSING PLAYER</div>
+          <div className="muted" style={{ marginTop: 6 }}>One player played with <b style={{ color: "var(--navy)" }}>all three</b>. Who links them?</div>
+          {puzzle.era && (
+            <div style={{ display: "inline-block", marginTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "var(--navyDeep)", background: "var(--paperDk)", border: "2px solid var(--line)", borderRadius: 999, padding: "4px 12px" }}>
+              ⏱ {puzzle.era}
+            </div>
+          )}
         </div>
         {puzzle.clues.map((id, i) => {
           const p = PLAYERS[id];
@@ -153,10 +182,10 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
               <div className="foil" />
               <div className="srow">
                 <span className="snum disp">{i + 1}</span>
-                <div className="sflag">{p[3]}</div>
+                <div className="sflag"><Flag emoji={p[3]} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="sname">{p[0]}</div>
-                  <div className="spos">{POSNAME[p[2]]}{cardClue ? ` · ${p[1]}` : ""}</div>
+                  <div className="spos">{POSNAME[p[2]]}{cardClue && puzzle.sharedClubs ? ` · played here: ${puzzle.sharedClubs[i]}` : ""}</div>
                 </div>
                 <span className="stag">{p[2]}</span>
               </div>
@@ -167,16 +196,23 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
           <div className="sticker" style={{ animation: "snap .5s ease both", background: solved ? "var(--gold)" : "var(--cream)" }}>
             <div className="srow">
               <span className="snum disp" style={{ opacity: .4 }}>4</span>
-              <div className="sflag">{ans[3]}</div>
+              <div className="sflag"><Flag emoji={ans[3]} /></div>
               <div style={{ flex: 1 }}>
                 <div className="sname">{ans[0]}</div>
-                <div className="spos" style={{ color: "var(--navyDeep)", fontWeight: 700 }}>{solved ? "GOT IT! ✓" : "the missing link"}</div>
+                <div className="spos" style={{ color: "var(--navyDeep)", fontWeight: 700 }}>{solved ? "GOT IT! ✓" : "the missing player"}</div>
               </div>
             </div>
           </div>
         ) : (
           <div className="slot">
-            <div className="q disp">?</div>
+            {puzzle.diff === "easy" ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <div className="sflag" style={{ width: 44, height: 44 }}><Flag emoji={ans[3]} size={36} /></div>
+                <div className="q disp" style={{ fontSize: 24 }}>?</div>
+              </div>
+            ) : (
+              <div className="q disp">?</div>
+            )}
             <div className="hint">{POSNAME[ans[2]]} · Premier League{posClue ? ` · ${ans[3]}` : ""}</div>
           </div>
         )}
@@ -208,7 +244,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
               <div className="sugg">
                 {sugg.map((id) => (
                   <button key={id} onClick={() => submit(id)}>
-                    <span className="n">{PLAYERS[id][3]} {PLAYERS[id][0]}</span>
+                    <span className="n" style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Flag emoji={PLAYERS[id][3]} size={20} /> {PLAYERS[id][0]}</span>
                     <span className="m">{PLAYERS[id][1].split(" / ")[0]} · {PLAYERS[id][2]}</span>
                   </button>
                 ))}
@@ -219,7 +255,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
             <span className="muted" style={{ color: "var(--cream)" }}>{remaining} guess{remaining !== 1 ? "es" : ""} left</span>
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
               {!hideGiveUp && <button className="btn ghost" onClick={() => { setRevealed(true); onResolve(false, "miss"); }}>Give up</button>}
-              <button className="btn cream" onClick={buyCard} disabled={cardClue || profile.coins < ECONOMY.spend.clueClubs}>{cardClue ? "Clubs shown" : `🏟️ Clubs · ${ECONOMY.spend.clueClubs}`}</button>
+              <button className="btn cream" onClick={buyCard} disabled={cardClue || profile.coins < ECONOMY.spend.clueClubs}>{cardClue ? "Clubs shown" : `🏟️ Shared clubs · ${ECONOMY.spend.clueClubs}`}</button>
               <button className="btn gold" onClick={buyPos} disabled={posClue || profile.coins < ECONOMY.spend.clueHint}>{posClue ? "Clue used" : `💡 Hint · ${ECONOMY.spend.clueHint}`}</button>
             </div>
           </div>
@@ -234,7 +270,7 @@ function Outcome({ solved, alt, ans }) {
     <div className="outcome" style={{ background: solved ? "var(--gold)" : "var(--cream)" }}>
       <div className="disp" style={{ fontSize: 26, color: "var(--navy)" }}>{solved ? (alt ? "SHARP ONE!" : "STICKER FOUND!") : "MISSED IT"}</div>
       <div className="muted" style={{ color: solved ? "var(--navyDeep)" : "var(--dim)", marginTop: 5 }}>
-        {solved ? (alt ? `Also played with all three. We had ${ans[0]}.` : `${ans[0]} joins your album.`) : `The missing sticker was ${ans[0]}.`}
+        {solved ? (alt ? `Also played with all three. We had ${ans[0]}.` : `${ans[0]} — nice one.`) : `The missing player was ${ans[0]}.`}
       </div>
     </div>
   );
@@ -346,7 +382,7 @@ function LevelMap({ profile, onPlay }) {
   return (
     <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
       <div className="center" style={{ margin: "6px 0 14px" }}>
-        <span className="muted" style={{ letterSpacing: ".18em", color: "var(--gold)" }}>THE ALBUM · {reached}/{LEVELS.length} PAGES</span>
+        <span className="muted" style={{ letterSpacing: ".18em", color: "var(--gold)" }}>LEVELS · {reached}/{LEVELS.length} COMPLETE</span>
       </div>
       {LEVELS.map((lvl, i) => {
         const done = i < reached;
@@ -372,7 +408,7 @@ function LevelMap({ profile, onPlay }) {
         );
       })}
       <p className="muted" style={{ color: "var(--line)", textAlign: "center", fontSize: 11, opacity: .8, marginTop: 6 }}>
-        Each page is 3 puzzles. 3 guesses per puzzle — miss all 3 and you lose a life. Run out of lives and the page resets.
+        Each level is 3 puzzles. 3 guesses per puzzle — miss all 3 and you lose a life. Run out of lives and the level resets.
       </p>
     </div>
   );
@@ -481,14 +517,13 @@ function LevelComplete({ level, cleared, onExit, profile, setProfile }) {
   }
   return (
     <div className="center" style={{ marginTop: 24, animation: "pop .4s ease both" }}>
-      <div className="disp" style={{ fontSize: 15, letterSpacing: ".16em", color: "var(--gold)" }}>★ PAGE COMPLETE ★</div>
-      <div className="disp" style={{ fontSize: 40, color: "var(--cream)", lineHeight: 1, margin: "8px 0", textShadow: "3px 3px 0 var(--red)" }}>{level.name}</div>
-      <div className="disp" style={{ fontSize: 24, color: "var(--gold)" }}>+{doubled ? reward * 2 : reward} 🪙</div>
-      <div className="muted" style={{ color: "var(--line)", marginTop: 4 }}>Every sticker collected on this page.</div>
+      <div className="disp" style={{ fontSize: 15, letterSpacing: ".16em", color: "var(--gold)" }}>★ {level.name} COMPLETE ★</div>
+      <div className="disp" style={{ fontSize: 56, color: "var(--gold)", lineHeight: 1, margin: "10px 0 2px", textShadow: "3px 3px 0 var(--red)" }}>+{doubled ? reward * 2 : reward}</div>
+      <div className="muted" style={{ color: "var(--line)" }}>coins earned</div>
       {!doubled && (
-        <button className="big" onClick={watchAdDouble} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--grass)", color: "var(--cream)", boxShadow: "3px 3px 0 var(--navy)" }}>▶ WATCH AD — DOUBLE COINS</button>
+        <button className="big" onClick={watchAdDouble} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--grass)", color: "var(--cream)", boxShadow: "3px 3px 0 var(--navy)" }}>▶ WATCH AD — DOUBLE TO {reward * 2}</button>
       )}
-      <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "10px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>BACK TO PAGES →</button>
+      <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "10px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>CONTINUE →</button>
     </div>
   );
 }
@@ -571,32 +606,55 @@ function Store({ profile, setProfile }) {
   );
 }
 
-function Practice({ profile, setProfile }) {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BANK.length));
-  const [round, setRound] = useState(0);
-  const puzzle = BANK[idx];
-  function resolve() { /* practice doesn't affect streak */ }
-  const header = (
-    <div className="center" style={{ margin: "8px 0 10px" }}>
-      <span className="muted" style={{ letterSpacing: ".18em" }}>PRACTICE
-        <span style={{ marginLeft: 8, fontWeight: 800, color: DIFFC[puzzle.diff], textTransform: "uppercase" }}>{puzzle.diff}</span>
-      </span>
-    </div>
-  );
+function Competitions() {
+  const [notify, setNotify] = useState(false);
   return (
-    <div>
-      <PuzzleView key={round} puzzle={puzzle} profile={profile} setProfile={setProfile} onResolve={resolve} header={header} />
-      <button className="big" onClick={() => { setIdx(Math.floor(Math.random() * BANK.length)); setRound((r) => r + 1); }} style={{ marginTop: 14, maxWidth: 280, marginInline: "auto", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>NEXT PRACTICE PUZZLE →</button>
+    <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
+      <div className="center" style={{ margin: "6px 0 14px" }}>
+        <span className="muted" style={{ letterSpacing: ".18em", color: "var(--gold)" }}>COMING SOON</span>
+      </div>
+
+      <div className="card paper" style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}>🏆</div>
+        <div className="disp" style={{ fontSize: 30, color: "var(--navy)", lineHeight: .95, marginTop: 6 }}>THE WEEKLY CUP</div>
+        <div className="muted" style={{ marginTop: 8, fontSize: 14 }}>
+          Go head-to-head with players across the country in a weekly football-knowledge competition — and win real prizes.
+        </div>
+
+        <div style={{ borderTop: "2px solid var(--line)", margin: "16px 0", paddingTop: 16, textAlign: "left" }}>
+          <div className="step" style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0" }}>
+            <span className="disp" style={{ fontSize: 20, color: "var(--red)", width: 24 }}>⚽</span>
+            <div className="muted" style={{ color: "var(--navy)", fontWeight: 600 }}>Four hard puzzles. Same for everyone.</div>
+          </div>
+          <div className="step" style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0" }}>
+            <span className="disp" style={{ fontSize: 20, color: "var(--red)", width: 24 }}>⏱️</span>
+            <div className="muted" style={{ color: "var(--navy)", fontWeight: 600 }}>Fastest correct run wins. Pure skill, no luck.</div>
+          </div>
+          <div className="step" style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "8px 0" }}>
+            <span className="disp" style={{ fontSize: 20, color: "var(--red)", width: 24 }}>🎟️</span>
+            <div className="muted" style={{ color: "var(--navy)", fontWeight: 600 }}>Win football trips & matchday experiences.</div>
+          </div>
+        </div>
+
+        <button className="big" onClick={() => setNotify(true)} disabled={notify} style={{ background: notify ? "var(--grass)" : "var(--navy)" }}>
+          {notify ? "✓ WE'LL LET YOU KNOW" : "NOTIFY ME WHEN IT'S LIVE"}
+        </button>
+      </div>
+
+      <p className="muted" style={{ color: "var(--line)", textAlign: "center", marginTop: 14, fontSize: 11, opacity: .8, maxWidth: 340, marginInline: "auto" }}>
+        The Weekly Cup is a skill competition in development. It will be 18+, and launches once everything's in place. Not yet available.
+      </p>
     </div>
   );
 }
+
 
 // ---- STATS ----------------------------------------------------------------
 function Stats({ profile }) {
   const items = [
     ["🔥", profile.streak, "Current streak"],
     ["🏆", profile.best, "Best streak"],
-    ["📖", profile.collected, "Stickers found"],
+    ["⚽", profile.collected, "Players found"],
     ["📅", profile.played, "Matchdays played"],
   ];
   return (
