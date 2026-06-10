@@ -122,10 +122,10 @@ function Onboarding({ onStart }) {
   return (
     <div className="ob paper">
       <h2>HOW TO PLAY</h2>
-      <div className="step"><span className="n">1</span><div className="t"><b>Read the team sheet</b><p>You're shown three real footballers — like cards in a sticker album.</p></div></div>
+      <div className="step"><span className="n">1</span><div className="t"><b>Read the team sheet</b><p>You're shown three real footballers — presented like collectible cards.</p></div></div>
       <div className="step"><span className="n">2</span><div className="t"><b>Name the missing player</b><p>One player was a teammate of all three. Type their name — pick from the list.</p></div></div>
       <div className="step"><span className="n">3</span><div className="t"><b>Any correct link counts</b><p>If more than one player genuinely links all three, any of them is accepted.</p></div></div>
-      <div className="step"><span className="n">4</span><div className="t"><b>Come back daily</b><p>Three new puzzles every day. Keep your streak alive and collect stickers.</p></div></div>
+      <div className="step"><span className="n">4</span><div className="t"><b>Come back daily</b><p>Three new puzzles every day. Keep your streak alive and climb the levels.</p></div></div>
       <button className="big" onClick={onStart} style={{ marginTop: 16 }}>START PLAYING →</button>
     </div>
   );
@@ -205,15 +205,11 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
           </div>
         ) : (
           <div className="slot">
-            {puzzle.diff === "easy" ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                <div className="sflag" style={{ width: 44, height: 44 }}><Flag emoji={ans[3]} size={36} /></div>
-                <div className="q disp" style={{ fontSize: 24 }}>?</div>
-              </div>
-            ) : (
-              <div className="q disp">?</div>
-            )}
-            <div className="hint">{POSNAME[ans[2]]} · Premier League{posClue ? ` · ${ans[3]}` : ""}</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div className="sflag" style={{ width: 44, height: 44 }}><Flag emoji={ans[3]} size={36} /></div>
+              <div className="q disp" style={{ fontSize: 24 }}>?</div>
+            </div>
+            <div className="hint">{POSNAME[ans[2]]} · Premier League{posClue ? ` · surname starts "${ans[0].split(" ").slice(-1)[0][0]}"` : ""}</div>
           </div>
         )}
       </div>
@@ -268,7 +264,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
 function Outcome({ solved, alt, ans }) {
   return (
     <div className="outcome" style={{ background: solved ? "var(--gold)" : "var(--cream)" }}>
-      <div className="disp" style={{ fontSize: 26, color: "var(--navy)" }}>{solved ? (alt ? "SHARP ONE!" : "STICKER FOUND!") : "MISSED IT"}</div>
+      <div className="disp" style={{ fontSize: 26, color: "var(--navy)" }}>{solved ? (alt ? "SHARP ONE!" : "PLAYER FOUND!") : "MISSED IT"}</div>
       <div className="muted" style={{ color: solved ? "var(--navyDeep)" : "var(--dim)", marginTop: 5 }}>
         {solved ? (alt ? `Also played with all three. We had ${ans[0]}.` : `${ans[0]} — nice one.`) : `The missing player was ${ans[0]}.`}
       </div>
@@ -347,7 +343,7 @@ function DailyDone({ profile, matchday }) {
       <div className="gridres">{results.map((r, i) => <span key={i} style={{ background: r === "miss" ? "var(--red)" : r === "alt" ? "#6aa0d8" : "var(--gold)" }} />)}</div>
       <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "6px 0 18px" }}>
         <div><div className="disp" style={{ fontSize: 28, color: "var(--cream)" }}>🔥{profile.streak}</div><div className="muted" style={{ color: "var(--line)" }}>streak</div></div>
-        <div><div className="disp" style={{ fontSize: 28, color: "var(--cream)" }}>📖{profile.collected}</div><div className="muted" style={{ color: "var(--line)" }}>stickers</div></div>
+        <div><div className="disp" style={{ fontSize: 28, color: "var(--cream)" }}>📖{profile.collected}</div><div className="muted" style={{ color: "var(--line)" }}>found</div></div>
         <div><div className="disp" style={{ fontSize: 28, color: "var(--cream)" }}>🏆{profile.best}</div><div className="muted" style={{ color: "var(--line)" }}>best</div></div>
       </div>
       <button className="big" onClick={doShare} style={{ maxWidth: 280, margin: "0 auto", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>SHARE RESULT</button>
