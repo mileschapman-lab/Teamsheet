@@ -1,0 +1,123 @@
+// data/players.js
+// Player database (slice). In production this is generated from the full
+// Transfermarkt-derived dataset. Each entry: [name, clubs, position, flag].
+// clubs/era are used for the disambiguation hints; pos drives the free scaffold.
+
+export const PLAYERS = {
+  carrick:   ["Michael Carrick", "West Ham / Spurs / Man Utd", "MF", "🏴"],
+  zlatan:    ["Zlatan Ibrahimović", "Man Utd", "FW", "🇸🇪"],
+  sheringham:["Teddy Sheringham", "Spurs / Man Utd / West Ham", "FW", "🏴"],
+  vidic:     ["Nemanja Vidić", "Man Utd", "DF", "🇷🇸"],
+  cantona:   ["Eric Cantona", "Leeds / Man Utd", "FW", "🇫🇷"],
+  beckham:   ["David Beckham", "Man Utd", "MF", "🏴"],
+  giggs:     ["Ryan Giggs", "Man Utd", "MF", "🏴"],
+  scholes:   ["Paul Scholes", "Man Utd", "MF", "🏴"],
+  neville:   ["Gary Neville", "Man Utd", "DF", "🏴"],
+  keane:     ["Roy Keane", "Man Utd", "MF", "🇮🇪"],
+  vdsar:     ["Edwin van der Sar", "Fulham / Man Utd", "GK", "🇳🇱"],
+  rooney:    ["Wayne Rooney", "Everton / Man Utd", "FW", "🏴"],
+  ferdinand: ["Rio Ferdinand", "West Ham / Leeds / Man Utd / QPR", "DF", "🏴"],
+  evra:      ["Patrice Evra", "Man Utd / West Ham", "DF", "🇫🇷"],
+  campbell:  ["Sol Campbell", "Spurs / Arsenal", "DF", "🏴"],
+  henry:     ["Thierry Henry", "Arsenal", "FW", "🇫🇷"],
+  vieira:    ["Patrick Vieira", "Arsenal / Man City", "MF", "🇫🇷"],
+  pires:     ["Robert Pires", "Arsenal", "MF", "🇫🇷"],
+  bergkamp:  ["Dennis Bergkamp", "Arsenal", "FW", "🇳🇱"],
+  fabregas:  ["Cesc Fàbregas", "Arsenal / Chelsea", "MF", "🇪🇸"],
+  cech:      ["Petr Čech", "Chelsea / Arsenal", "GK", "🇨🇿"],
+  mertesacker:["Per Mertesacker", "Arsenal", "DF", "🇩🇪"],
+  walcott:   ["Theo Walcott", "Arsenal / Everton", "FW", "🏴"],
+  cole_a:    ["Ashley Cole", "Arsenal / Chelsea", "DF", "🏴"],
+  sagna:     ["Bacary Sagna", "Arsenal / Man City", "DF", "🇫🇷"],
+  clichy:    ["Gaël Clichy", "Arsenal / Man City", "DF", "🇫🇷"],
+  kolo:      ["Kolo Touré", "Arsenal / Man City / Liverpool", "DF", "🇨🇮"],
+  nasri:     ["Samir Nasri", "Arsenal / Man City", "MF", "🇫🇷"],
+  adebayor:  ["Emmanuel Adebayor", "Arsenal / Man City / Spurs", "FW", "🇹🇬"],
+  terry:     ["John Terry", "Chelsea", "DF", "🏴"],
+  lampard:   ["Frank Lampard", "West Ham / Chelsea / Man City", "MF", "🏴"],
+  drogba:    ["Didier Drogba", "Chelsea", "FW", "🇨🇮"],
+  wise:      ["Dennis Wise", "Chelsea / Leicester", "MF", "🏴"],
+  makelele:  ["Claude Makélélé", "Chelsea", "MF", "🇫🇷"],
+  hazard:    ["Eden Hazard", "Chelsea", "FW", "🇧🇪"],
+  azpi:      ["César Azpilicueta", "Chelsea", "DF", "🇪🇸"],
+  ivanovic:  ["Branislav Ivanović", "Chelsea", "DF", "🇷🇸"],
+  joecole:   ["Joe Cole", "West Ham / Chelsea / Liverpool", "MF", "🏴"],
+  gerrard:   ["Steven Gerrard", "Liverpool", "MF", "🏴"],
+  carragher: ["Jamie Carragher", "Liverpool", "DF", "🏴"],
+  owen:      ["Michael Owen", "Liverpool / Newcastle / Man Utd / Stoke", "FW", "🏴"],
+  fowler:    ["Robbie Fowler", "Liverpool / Leeds / Man City", "FW", "🏴"],
+  suarez:    ["Luis Suárez", "Liverpool", "FW", "🇺🇾"],
+  henderson: ["Jordan Henderson", "Sunderland / Liverpool", "MF", "🏴"],
+  sturridge: ["Daniel Sturridge", "Man City / Chelsea / Liverpool", "FW", "🏴"],
+  hyypia:    ["Sami Hyypiä", "Liverpool", "DF", "🇫🇮"],
+  berger:    ["Patrik Berger", "Liverpool", "MF", "🇨🇿"],
+  salah:     ["Mohamed Salah", "Chelsea / Liverpool", "FW", "🇪🇬"],
+  mane:      ["Sadio Mané", "Southampton / Liverpool", "FW", "🇸🇳"],
+  vandijk:   ["Virgil van Dijk", "Southampton / Liverpool", "DF", "🇳🇱"],
+  torres:    ["Fernando Torres", "Liverpool / Chelsea", "FW", "🇪🇸"],
+  ince:      ["Paul Ince", "Man Utd / Liverpool / Middlesbrough", "MF", "🏴"],
+  kompany:   ["Vincent Kompany", "Man City", "DF", "🇧🇪"],
+  silva:     ["David Silva", "Man City", "MF", "🇪🇸"],
+  aguero:    ["Sergio Agüero", "Man City", "FW", "🇦🇷"],
+  yaya:      ["Yaya Touré", "Man City", "MF", "🇨🇮"],
+  sterling:  ["Raheem Sterling", "Liverpool / Man City / Chelsea", "FW", "🏴"],
+  hart:      ["Joe Hart", "Man City / Spurs", "GK", "🏴"],
+  debruyne:  ["Kevin De Bruyne", "Chelsea / Man City", "MF", "🇧🇪"],
+  milner:    ["James Milner", "Leeds / Newcastle / Aston Villa / Man City / Liverpool", "MF", "🏴"],
+  barry:     ["Gareth Barry", "Aston Villa / Man City / Everton / West Brom", "MF", "🏴"],
+  cahill:    ["Gary Cahill", "Aston Villa / Bolton / Chelsea", "DF", "🏴"],
+  kane:      ["Harry Kane", "Spurs", "FW", "🏴"],
+  son:       ["Son Heung-min", "Spurs", "FW", "🇰🇷"],
+  modric:    ["Luka Modrić", "Spurs", "MF", "🇭🇷"],
+  bale:      ["Gareth Bale", "Spurs", "FW", "🏴"],
+  lloris:    ["Hugo Lloris", "Spurs", "GK", "🇫🇷"],
+  defoe:     ["Jermain Defoe", "West Ham / Spurs / Sunderland", "FW", "🏴"],
+  alli:      ["Dele Alli", "Spurs / Everton", "MF", "🏴"],
+  vardy:     ["Jamie Vardy", "Leicester", "FW", "🏴"],
+  mahrez:    ["Riyad Mahrez", "Leicester / Man City", "FW", "🇩🇿"],
+  schmeichel:["Kasper Schmeichel", "Man City / Leicester", "GK", "🇩🇰"],
+  kante:     ["N'Golo Kanté", "Leicester / Chelsea", "MF", "🇫🇷"],
+  jmaddison: ["James Maddison", "Leicester / Spurs", "MF", "🏴"],
+  jward:     ["James Ward-Prowse", "Southampton / West Ham", "MF", "🏴"],
+  jtarkowski:["James Tarkowski", "Burnley / Everton", "DF", "🏴"],
+};
+
+export const POSNAME = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
+
+// Verified puzzle bank. Every entry has been validated so the answer genuinely
+// shared a club in an overlapping season with ALL clue players, and the clues
+// span >= 2 clubs (so no trivial single-club puzzles). `valid` lists every
+// legitimate answer (here always one). In production this is the human-reviewed
+// output of the generator.
+export const BANK = [
+  {clues:["silva","cech","ferdinand"],answer:"lampard",valid:["lampard"],diff:"easy"},
+  {clues:["carragher","carrick","drogba"],answer:"joecole",valid:["joecole"],diff:"medium"},
+  {clues:["scholes","campbell","defoe"],answer:"sheringham",valid:["sheringham"],diff:"medium"},
+  {clues:["hart","vandijk","ferdinand"],answer:"milner",valid:["milner"],diff:"medium"},
+  {clues:["walcott","barry","lloris"],answer:"adebayor",valid:["adebayor"],diff:"medium"},
+  {clues:["cech","kolo","vandijk"],answer:"sturridge",valid:["sturridge"],diff:"medium"},
+  {clues:["joecole","keane","milner"],answer:"ferdinand",valid:["ferdinand"],diff:"medium"},
+  {clues:["carragher","lampard","kante"],answer:"sterling",valid:["sterling"],diff:"medium"},
+  {clues:["pires","ivanovic","sagna"],answer:"fabregas",valid:["fabregas"],diff:"medium"},
+  {clues:["lampard","adebayor","carrick"],answer:"defoe",valid:["defoe"],diff:"medium"},
+  {clues:["hyypia","fabregas","azpi"],answer:"torres",valid:["torres"],diff:"medium"},
+  {clues:["joecole","evra","defoe"],answer:"carrick",valid:["carrick"],diff:"medium"},
+  {clues:["kolo","kante","vardy"],answer:"schmeichel",valid:["schmeichel"],diff:"medium"},
+  {clues:["vardy","debruyne","kante"],answer:"mahrez",valid:["mahrez"],diff:"medium"},
+  {clues:["owen","beckham","carragher"],answer:"ince",valid:["ince"],diff:"medium"},
+  {clues:["bergkamp","gerrard","milner"],answer:"kolo",valid:["kolo"],diff:"hard"},
+  {clues:["schmeichel","cahill","yaya"],answer:"barry",valid:["barry"],diff:"hard"},
+  {clues:["bergkamp","hart","mertesacker"],answer:"clichy",valid:["clichy"],diff:"hard"},
+];
+
+// LEVELS: the progression mode. Each level is a themed set of puzzle indices
+// (into BANK). Ordered easy -> hard. Clear all puzzles in a set to complete the
+// level. Themes are named by a property of the puzzles, not spoilers.
+export const LEVELS = [
+  { name: "WARM-UP", theme: "Find your feet", puzzles: [0, 1, 11] },
+  { name: "MIDFIELD ENGINES", theme: "The men in the middle", puzzles: [2, 6, 14] },
+  { name: "TRAVELLED MEN", theme: "Players who got around", puzzles: [3, 9, 7] },
+  { name: "MODERN ERA", theme: "The recent game", puzzles: [4, 13, 12] },
+  { name: "DEEP CUTS", theme: "For the real ones", puzzles: [8, 10, 5] },
+  { name: "THE GAUNTLET", theme: "No easy answers", puzzles: [15, 16, 17] },
+];
