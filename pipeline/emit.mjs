@@ -8,6 +8,17 @@ import fs from "fs";
 
 const { bank, players } = JSON.parse(fs.readFileSync("bank_generated.json", "utf8"));
 const POSMAP = { GK: "GK", DEF: "DF", MID: "MF", FWD: "FW" };
+const fold = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\u00f8/g, "o").replace(/\u0111/g, "d").replace(/\u0142/g, "l");
+const TMPOS_ABBR = { "Goalkeeper":"GK","Centre-Back":"CB","Left-Back":"LB","Right-Back":"RB",
+  "Defensive Midfield":"CDM","Central Midfield":"CM","Attacking Midfield":"CAM",
+  "Left Midfield":"LM","Right Midfield":"RM","Left Winger":"LW","Right Winger":"RW",
+  "Centre-Forward":"ST","Second Striker":"SS","Sweeper":"CB" };
+const TMPOS = {};
+for (const l of fs.readFileSync("raw/tm_transfers_pl.csv", "utf8").split("\n").slice(1)) {
+  const c = l.split(",");
+  if (c[1] && c[3] && TMPOS_ABBR[c[3]]) TMPOS[fold(c[1])] = TMPOS_ABBR[c[3]];
+}
 
 // ---- curate: balanced selection from the 180 -----------------------------------
 const byDiff = { easy: [], medium: [], hard: [] };
@@ -40,7 +51,7 @@ function clubsSummary(c) { return Object.keys(players[c].clubs).join(" / "); }
 let plines = [];
 for (const c of allIds.sort((a, b) => players[a].display.localeCompare(players[b].display))) {
   const p = players[c];
-  plines.push(`  g${c}: [${JSON.stringify(p.display)}, ${JSON.stringify(clubsSummary(c))}, ${JSON.stringify(POSMAP[p.mainPos])}, "⚽", ${JSON.stringify(p.mainPos)}, ${rating(c)}],`);
+  plines.push(`  g${c}: [${JSON.stringify(p.display)}, ${JSON.stringify(clubsSummary(c))}, ${JSON.stringify(POSMAP[p.mainPos])}, "⚽", ${JSON.stringify(TMPOS[fold(p.display)] || p.mainPos)}, ${rating(c)}],`);
 }
 
 let blines = chosen.map(b =>

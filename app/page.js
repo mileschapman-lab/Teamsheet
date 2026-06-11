@@ -104,13 +104,12 @@ export default function Page() {
     <div className="wrap">
       <Header profile={profile} />
       <div className="tabs">
-        {["daily", "levels", "match", "competitions", "store", "stats"].map((t) => (
+        {["daily", "levels", "competitions", "store", "stats"].map((t) => (
           <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
       {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} />}
       {tab === "levels" && <Levels profile={profile} setProfile={setProfile} />}
-      {tab === "match" && <MatchMode profile={profile} setProfile={setProfile} />}
       {tab === "competitions" && <Competitions />}
       {tab === "store" && <Store profile={profile} setProfile={setProfile} />}
       {tab === "stats" && <Stats profile={profile} />}
@@ -406,7 +405,9 @@ function LevelMap({ profile, onPlay }) {
             }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div className="disp" style={{ fontSize: 22, color: "var(--navy)" }}>{lvl.name}</div>
+                <div className="disp" style={{ fontSize: 22, color: "var(--navy)" }}>{lvl.name}
+                  {lvl.type === "match" && <span style={{ fontSize: 11, verticalAlign: "middle", marginLeft: 8, background: "var(--navy)", color: "var(--gold)", borderRadius: 5, padding: "3px 7px", letterSpacing: ".08em" }}>🏟 MATCH</span>}
+                </div>
                 <div className="muted" style={{ marginTop: 2 }}>{lvl.theme}</div>
               </div>
               <div className="disp" style={{ fontSize: 30, color: done ? "var(--grass)" : open ? "var(--red)" : "var(--line)" }}>
@@ -417,7 +418,7 @@ function LevelMap({ profile, onPlay }) {
         );
       })}
       <p className="muted" style={{ color: "var(--line)", textAlign: "center", fontSize: 11, opacity: .8, marginTop: 6 }}>
-        Each level is 3 puzzles. 3 guesses per puzzle — miss all 3 and you lose a life. Run out of lives and the level resets.
+        Connection levels: 3 puzzles, 3 guesses each — miss all 3 and you lose a life. Match levels: name the fixture's two missing players — every 3 wrong guesses costs a life.
       </p>
     </div>
   );
@@ -446,6 +447,10 @@ function LevelRun({ levelIndex, profile, setProfile, onExit }) {
       setProfile((p) => ({ ...p, lives: lv.lives, livesAt: lv.livesAt }));
     }
     return <OutOfLives profile={profile} setProfile={setProfile} onExit={onExit} msToNext={lv.msToNext} />;
+  }
+
+  if (level.type === "match") {
+    return <MatchLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} />;
   }
 
   function onResolve(solved) {
@@ -512,6 +517,108 @@ function LevelRun({ levelIndex, profile, setProfile, onExit }) {
   return (
     <PuzzleView key={step} puzzle={puzzle} profile={profile} setProfile={setProfile}
       onResolve={(solved) => onResolve(solved)} header={header} maxGuesses={GUESSES_PER_PUZZLE} hideGiveUp />
+  );
+}
+
+
+// ---- MATCH LEVEL: real fixture, name the missing two; 3 misses = 1 life ----
+function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
+  const m = MATCHES[level.match];
+  const blanks = m.lineup.filter(p => p.missing);
+  const [found, setFound] = useState([]);
+  const [missStreak, setMissStreak] = useState(0);
+  const [query, setQuery] = useState("");
+  const [shake, setShake] = useState(false);
+  const [done, setDone] = useState(false);
+  const solvedAll = found.length >= blanks.length;
+
+  function submit(name) {
+    if (!name || done) return;
+    const g = matchNorm(name);
+    setQuery("");
+    if (found.includes(g)) return;
+    const hit = blanks.find(b => matchNorm(b.name) === g);
+    if (hit) {
+      const nf = [...found, g];
+      setFound(nf);
+      setMissStreak(0);
+      if (nf.length >= blanks.length) {
+        setDone(true);
+        setProfile(p => {
+          const firstTime = !(p.clearedLevels || []).includes(levelIndex);
+          const reward = ECONOMY.earn.levelComplete + (firstTime ? ECONOMY.earn.firstClearBonus : 0);
+          return { ...p, coins: p.coins + reward,
+            levelReached: Math.max(p.levelReached, levelIndex + 1),
+            collected: p.collected + blanks.length,
+            clearedLevels: firstTime ? [...(p.clearedLevels || []), levelIndex] : (p.clearedLevels || []),
+            lastReward: reward };
+        });
+      }
+    } else {
+      setShake(true); setTimeout(() => setShake(false), 420);
+      const ms = missStreak + 1;
+      if (ms >= 3) {
+        setMissStreak(0);
+        const s = spendLife(profile.lives, profile.livesAt);
+        setProfile(p => ({ ...p, lives: s.lives, livesAt: s.livesAt }));
+        // lives<=0 → parent LevelRun shows the OutOfLives gate on re-render
+      } else setMissStreak(ms);
+    }
+  }
+  const sugg = query ? matchSearch(query) : [];
+
+  if (done) return <LevelComplete level={level} cleared onExit={onExit} profile={profile} setProfile={setProfile} />;
+
+  return (
+    <div style={{ animation: "pop .3s ease both" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "6px 0 8px" }}>
+        <button className="btn ghost" onClick={onExit}>← Levels</button>
+        <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)} · {3 - missStreak} guesses</span>
+      </div>
+      <div className="center" style={{ margin: "0 0 6px" }}>
+        <span className="muted" style={{ letterSpacing: ".16em" }}>{level.name} · REAL FIXTURE
+          <span style={{ marginLeft: 8, fontWeight: 800, color: "var(--gold)" }}>{m.season} GW{m.gw}</span>
+        </span>
+      </div>
+      <div className="card paper" style={{ animation: shake ? "shake .42s" : "none" }}>
+        <div className="center">
+          <div className="disp" style={{ fontSize: 22, color: "var(--navy)" }}>{m.home} {m.score} {m.away}</div>
+          <div className="muted" style={{ fontSize: 11, letterSpacing: ".1em", marginTop: 2 }}>{m.featured} XI — name the missing two</div>
+        </div>
+        <div style={{ marginTop: 13, display: "grid", gap: 6 }}>
+          {m.lineup.map((p, i) => {
+            const isFound = p.missing && found.includes(matchNorm(p.name));
+            const show = !p.missing || isFound;
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "2px solid var(--navy)", borderRadius: 9, background: p.missing ? "var(--gold)" : "var(--cream)", borderStyle: p.missing && !isFound ? "dashed" : "solid" }}>
+                <span className="disp" style={{ fontSize: 11, color: "var(--navy)", background: "var(--paperDk)", border: "1.5px solid var(--line)", borderRadius: 5, padding: "2px 6px", minWidth: 38, textAlign: "center" }}>{p.pos}</span>
+                {show && <Flag emoji={p.flag} size={18} />}
+                <span style={{ fontWeight: show ? 700 : 800, fontSize: 13.5, color: "var(--navy)", flex: 1 }}>
+                  {show ? p.name : "❓ who's missing?"}{isFound ? " ✓" : ""}
+                  {show && <span style={{ marginLeft: 6, color: "var(--grass)", fontWeight: 800, fontSize: 12 }}>{p.rating}</span>}
+                </span>
+                <span style={{ fontSize: 12.5 }}>{show ? evIcons(p.events) : (evIcons(p.events) ? "👀 " + evIcons(p.events) : "")}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="muted" style={{ fontSize: 10.5, marginTop: 10, textAlign: "center" }}>⚽ scored · 🅰️ assisted · 🟨🟥 booked — 👀 events belong to a missing player · 3 wrong guesses costs a life</p>
+      </div>
+      <div className="ibox">
+        <input value={query} autoComplete="off"
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && sugg[0]) submit(sugg[0]); }}
+          placeholder={`Name ${m.featured}'s missing players…`}
+          style={{ borderRadius: sugg.length ? "11px 11px 0 0" : 11 }} />
+        {sugg.length > 0 && (
+          <div className="sugg">
+            {sugg.map(n => (
+              <button key={n} onClick={() => submit(n)}><span className="n">{n}</span></button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -640,128 +747,6 @@ function evIcons(e) {
   if (e.y) out += "🟨";
   if (e.red) out += "🟥";
   return out;
-}
-
-function MatchMode({ profile, setProfile }) {
-  const [sel, setSel] = useState(null);
-  if (sel === null) {
-    return (
-      <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
-        <div className="center" style={{ margin: "6px 0 14px" }}>
-          <span className="muted" style={{ letterSpacing: ".18em", color: "var(--gold)" }}>REAL MATCHES · NAME THE MISSING PLAYERS</span>
-        </div>
-        {MATCHES.map((m, i) => {
-          const done = (profile.matchesSolved || []).includes(i);
-          return (
-            <button key={i} onClick={() => setSel(i)} className="card paper"
-              style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", textAlign: "left", marginBottom: 12, cursor: "pointer", boxShadow: done ? "6px 6px 0 var(--grass)" : "6px 6px 0 var(--red)" }}>
-              <div>
-                <div className="disp" style={{ fontSize: 19, color: "var(--navy)" }}>{m.home} {m.score} {m.away}</div>
-                <div className="muted" style={{ marginTop: 2 }}>{m.season} · GW{m.gw} · find {m.featured}'s missing two</div>
-              </div>
-              <div className="disp" style={{ fontSize: 26, color: done ? "var(--grass)" : "var(--red)" }}>{done ? "✓" : "▶"}</div>
-            </button>
-          );
-        })}
-        <p className="muted" style={{ color: "var(--line)", textAlign: "center", fontSize: 11, opacity: .8 }}>
-          Real Premier League fixtures — lineups, scorers, assists and bookings from match data. Two of the XI are hidden: name them.
-        </p>
-      </div>
-    );
-  }
-  return <MatchPlay key={sel} idx={sel} profile={profile} setProfile={setProfile} onExit={() => setSel(null)} />;
-}
-
-function MatchPlay({ idx, profile, setProfile, onExit }) {
-  const m = MATCHES[idx];
-  const blanks = m.lineup.filter(p => p.missing);
-  const [found, setFound] = useState([]);          // names found (normalized)
-  const [misses, setMisses] = useState(0);
-  const [query, setQuery] = useState("");
-  const [revealed, setRevealed] = useState(false);
-  const [shake, setShake] = useState(false);
-  const MAX_MISS = 5;
-  const solvedAll = found.length >= blanks.length;
-  const over = solvedAll || revealed;
-  const alreadyDone = (profile.matchesSolved || []).includes(idx);
-
-  function submit(name) {
-    if (!name || over) return;
-    const g = matchNorm(name);
-    setQuery("");
-    if (found.includes(g)) return;
-    const hit = blanks.find(b => matchNorm(b.name) === g);
-    if (hit) {
-      const nf = [...found, g];
-      setFound(nf);
-      if (nf.length >= blanks.length && !alreadyDone) {
-        const reward = ECONOMY.earn.levelComplete;
-        setProfile(p => ({ ...p, coins: p.coins + reward, matchesSolved: [...(p.matchesSolved || []), idx] }));
-      }
-    } else {
-      const nm = misses + 1;
-      setMisses(nm);
-      setShake(true); setTimeout(() => setShake(false), 420);
-      if (nm >= MAX_MISS) setRevealed(true);
-    }
-  }
-  const sugg = matchSearch(query);
-
-  return (
-    <div style={{ animation: "pop .3s ease both" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "6px 0 8px" }}>
-        <button className="btn ghost" onClick={onExit}>← Matches</button>
-        <span className="muted" style={{ color: "var(--cream)" }}>{over ? "" : `${MAX_MISS - misses} wrong guesses left`}</span>
-      </div>
-      <div className="card paper" style={{ animation: shake ? "shake .42s" : "none" }}>
-        <div className="center">
-          <div className="disp" style={{ fontSize: 22, color: "var(--navy)" }}>{m.home} {m.score} {m.away}</div>
-          <div className="muted" style={{ fontSize: 11, letterSpacing: ".1em", marginTop: 2 }}>{m.season} · GAMEWEEK {m.gw} · {m.featured} XI</div>
-        </div>
-        <div style={{ marginTop: 14, display: "grid", gap: 6 }}>
-          {m.lineup.map((p, i) => {
-            const isFound = p.missing && found.includes(matchNorm(p.name));
-            const show = !p.missing || isFound || over;
-            return (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 11px", border: "2px solid var(--navy)", borderRadius: 9, background: p.missing ? (isFound ? "var(--gold)" : over ? "var(--cream)" : "var(--gold)") : "var(--cream)", borderStyle: p.missing && !isFound && !over ? "dashed" : "solid" }}>
-                <span className="disp" style={{ fontSize: 11, color: "var(--navy)", background: "var(--paperDk)", border: "1.5px solid var(--line)", borderRadius: 5, padding: "2px 7px", minWidth: 40, textAlign: "center" }}>{p.pos}</span>
-                <span style={{ fontWeight: show ? 700 : 800, fontSize: 14, color: "var(--navy)", flex: 1 }}>{show ? p.name : "❓ who's missing?"}{p.missing && isFound ? " ✓" : ""}</span>
-                <span style={{ fontSize: 13 }}>{(!p.missing || show) ? evIcons(p.events) : (evIcons(p.events) ? "👀 " + evIcons(p.events) : "")}</span>
-              </div>
-            );
-          })}
-        </div>
-        <p className="muted" style={{ fontSize: 10.5, marginTop: 10, textAlign: "center" }}>⚽ scored · 🅰️ assisted · 🟨/🟥 booked — the 👀 events belong to a missing player</p>
-      </div>
-
-      {over ? (
-        <div className="outcome" style={{ background: solvedAll ? "var(--gold)" : "var(--cream)" }}>
-          <div className="disp" style={{ fontSize: 24, color: "var(--navy)" }}>{solvedAll ? "FULL TEAM SHEET! ✓" : "FULL TIME"}</div>
-          <div className="muted" style={{ marginTop: 5, color: "var(--navyDeep)" }}>
-            {solvedAll ? (alreadyDone ? "Solved again — nice." : `+${ECONOMY.earn.levelComplete} coins.`) : `They were ${blanks.map(b => b.name).join(" and ")}.`}
-          </div>
-          <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "14px auto 0" }}>BACK TO MATCHES →</button>
-        </div>
-      ) : (
-        <div className="ibox">
-          <input value={query} autoComplete="off"
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && sugg[0]) submit(sugg[0]); }}
-            placeholder={`Name ${m.featured}'s missing players…`}
-            style={{ borderRadius: sugg.length ? "11px 11px 0 0" : 11 }} />
-          {sugg.length > 0 && (
-            <div className="sugg">
-              {sugg.map(n => (
-                <button key={n} onClick={() => submit(n)}>
-                  <span className="n">{n}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function Competitions() {

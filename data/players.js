@@ -5,6 +5,7 @@
 // = the club where clue[i] overlapped with the answer.
 
 import { GEN_PLAYERS, GEN_BANK } from "./generated";
+import { MATCHES } from "./matches";
 
 const CURATED_PLAYERS = {
   aguero: ["Sergio Agüero", "Man City", "FW", "🇦🇷", "ST", 90],
@@ -138,13 +139,14 @@ export const BANK = [
   ...GEN_BANK.filter((b) => !_curAns.has(GEN_PLAYERS[b.answer][0].toLowerCase())),
 ];
 
-// LEVELS rebuilt over the merged bank: easy -> medium -> hard, eras interleaved
-// within each difficulty so classic and modern puzzles mix.
+// LEVELS: typed and interleaved — two connection levels, then one real-match
+// level, repeating; leftover matches extend the ladder. Connection levels run
+// easy -> hard; match levels carry the fixture as their theme.
 const _order = { easy: 0, medium: 1, hard: 2 };
 const _idx = BANK.map((b, i) => i).sort((a, b) => {
   const d = _order[BANK[a].diff] - _order[BANK[b].diff];
   if (d) return d;
-  return (a % 7) - (b % 7); // cheap era interleave within a difficulty band
+  return (a % 7) - (b % 7);
 });
 const _names = [
   ["THE WARM-UP","Find your feet"],["FRESH LEGS","Modern names"],["RECENT MEMORY","Last few seasons"],
@@ -155,7 +157,23 @@ const _names = [
   ["INJURY TIME","Squeaky bum time"],["THE GAUNTLET","No mercy"],["FULL TIME","The final whistle"],
 ];
 export const LEVELS = [];
-for (let i = 0; i + 3 <= _idx.length; i += 3) {
-  const n = _names[Math.floor(i / 3)] || ["LEVEL " + (Math.floor(i / 3) + 1), "Keep going"];
-  LEVELS.push({ name: n[0], theme: n[1], puzzles: [_idx[i], _idx[i + 1], _idx[i + 2]] });
+{
+  let ci = 0, mi = 0, nameI = 0;
+  const pushConnect = () => {
+    if (ci + 3 > _idx.length) return false;
+    const n = _names[nameI++] || ["LEVEL " + (LEVELS.length + 1), "Keep going"];
+    LEVELS.push({ type: "connect", name: n[0], theme: n[1], puzzles: [_idx[ci], _idx[ci + 1], _idx[ci + 2]] });
+    ci += 3; return true;
+  };
+  const pushMatch = () => {
+    if (mi >= MATCHES.length) return false;
+    const m = MATCHES[mi];
+    LEVELS.push({ type: "match", name: "MATCHDAY", theme: `${m.home} ${m.score} ${m.away}`, match: mi });
+    mi++; return true;
+  };
+  while (ci + 3 <= _idx.length || mi < MATCHES.length) {
+    let moved = pushConnect(); if (ci + 3 <= _idx.length) moved = pushConnect() || moved;
+    moved = pushMatch() || moved;
+    if (!moved) break;
+  }
 }

@@ -9,6 +9,7 @@
 // Transfermarkt game_events adapter.
 
 import fs from "fs";
+import { CANON, FLAGS } from "./nationalities.mjs";
 
 const SEASONS = ["2019-20", "2020-21", "2021-22", "2022-23", "2023-24", "2024-25"];
 const BIG = new Set(["Arsenal", "Chelsea", "Liverpool", "Man City", "Man Utd", "Spurs", "Newcastle"]);
@@ -27,29 +28,60 @@ function parseCSV(text) {
   return rows;
 }
 
-// per-season display-name map from players_raw (full name -> web display)
+// per-season maps from players_raw: full name -> web display, and -> now_cost
 function displayMap(season) {
   const rows = parseCSV(fs.readFileSync(`raw/${season}.csv`, "utf8"));
-  const h = rows[0], iF = h.indexOf("first_name"), iS = h.indexOf("second_name"), iW = h.indexOf("web_name");
-  const m = {};
+  const h = rows[0], iF = h.indexOf("first_name"), iS = h.indexOf("second_name"),
+        iW = h.indexOf("web_name"), iC = h.indexOf("now_cost");
+  const m = {}, cost = {};
   for (const r of rows.slice(1)) {
     if (!r[iF]) continue;
     const full = `${r[iF]} ${r[iS]}`.trim();
     let web = (r[iW] || "").replace(/^[A-Z]\./, "");
     const first = full.split(/\s+/)[0];
-    m[full] = web.includes(" ") ? web
+    const d = web.includes(" ") ? web
       : web.toLowerCase() === first.toLowerCase() ? web
       : !full.toLowerCase().split(/\s+/).includes(web.toLowerCase()) ? web
       : `${first} ${web}`;
+    m[full] = d;
+    const c = parseInt(r[iC] || "0", 10);
+    cost[full] = c; cost[d] = c;
   }
-  return m;
+  return { m, cost };
 }
+
+// FPL price -> prime-ish 70-90 rating band (same shape as the generated bank)
+function costRating(c) {
+  if (!c) return 78;
+  return Math.max(70, Math.min(90, Math.round(70 + ((c - 40) / 95) * 20)));
+}
+
+
+// ---- Transfermarkt detailed positions (ewenme/transfers mirror, 1992+) -------
+const fold = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\u00f8/g, "o").replace(/\u0111/g, "d").replace(/\u0142/g, "l");
+const TM_ALIAS = { "alisson becker": "alisson", "edward nketiah": "eddie nketiah",
+  "heung-min son": "son heung-min", "matthew cash": "matty cash" };
+const TMPOS_ABBR = { "Goalkeeper":"GK","Centre-Back":"CB","Left-Back":"LB","Right-Back":"RB",
+  "Defensive Midfield":"CDM","Central Midfield":"CM","Attacking Midfield":"CAM",
+  "Left Midfield":"LM","Right Midfield":"RM","Left Winger":"LW","Right Winger":"RW",
+  "Centre-Forward":"ST","Second Striker":"SS","Sweeper":"CB" };
+const TMPOS = {};
+{
+  const lines = fs.readFileSync("raw/tm_transfers_pl.csv", "utf8").split("\n").slice(1);
+  for (const l of lines) {
+    const c = l.split(",");
+    if (c[1] && c[3] && TMPOS_ABBR[c[3]]) TMPOS[fold(c[1])] = TMPOS_ABBR[c[3]];
+  }
+}
+const tmPos = (name, fb) => TMPOS[fold(name)] || TMPOS[TM_ALIAS[fold(name)]] || fb;
 
 const matches = [];
 const namePool = new Set();
 
 for (const season of SEASONS) {
-  const disp = displayMap(season);
+  const { m: dispM, cost } = displayMap(season);
+  const disp = (full) => { const d = dispM[full] || full; return CANON[d] || d; };
   const rows = parseCSV(fs.readFileSync(`raw/gw-${season}.csv`, "utf8"));
   const h = rows[0];
   const c = (n) => h.indexOf(n);
@@ -67,7 +99,7 @@ for (const season of SEASONS) {
     const k = r[iFix];
     if (!fixtures.has(k)) fixtures.set(k, []);
     fixtures.get(k).push(r);
-    namePool.add(disp[r[iName]] || r[iName]);
+    namePool.add(disp(r[iName]));
   }
 
   for (const [fix, rs] of fixtures) {
@@ -104,14 +136,16 @@ for (const season of SEASONS) {
     const blank1 = withEvents[Math.floor(withEvents.length / 2)];
     const blank2 = noEvents[Math.floor(noEvents.length / 2)];
 
-    const D = (r) => disp[r[iName]] || r[iName];
+    const D = (r) => disp(r[iName]);
     matches.push({
       season, gw: parseInt(home[0][iRound] || "0", 10),
       home: hTeam, away: aTeam, score: `${hs}–${as}`,
       featured: featTeam,
       interest,
       lineup: xi.map(r => ({
-        name: D(r), pos: r[iPos],
+        name: D(r), pos: tmPos(D(r), r[iPos]),
+        flag: FLAGS[D(r)] || "⚽",
+        rating: costRating(cost[r[iName]] || cost[D(r)]),
         missing: r === blank1 || r === blank2,
         events: ev(r),
       })),
