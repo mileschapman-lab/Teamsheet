@@ -679,12 +679,7 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "6px 0 8px" }}>
         <button className="btn ghost" onClick={onExit}>← Pages</button>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <TimerPill left={timer.left} frozen={timer.frozen} />
-          <BoosterButtons profile={profile} setProfile={setProfile} frozen={timer.frozen} setFrozen={timer.setFrozen}
-            addTime={(s) => timer.setLeft((v) => v + s)} goStore={goStore} disabled={solvedAll || timedOut} />
-          <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)}</span>
-        </span>
+        <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)}</span>
       </div>
       <div className="progress">
         {setPuzzles.map((_, i) => (
@@ -954,6 +949,11 @@ function Store({ profile, setProfile }) {
     // simply grants the coins so the economy can be felt end-to-end.
     setProfile((p) => ({ ...p, coins: p.coins + b.coins }));
     setMsg(`(Demo) ${b.name} added ${b.coins.toLocaleString()} coins. Real payment via Stripe comes in the server phase.`);
+  }
+  function buyBooster(kind, cost) {
+    if (profile.coins < cost) { setMsg("Not enough coins — grab a bundle below."); return; }
+    setProfile((pr) => ({ ...pr, coins: pr.coins - cost, boosters: { freeze: 0, boost: 0, ...(pr.boosters || {}), [kind]: ((pr.boosters || {})[kind] || 0) + 1 } }));
+    setMsg(kind === "freeze" ? "❄️ Time Freeze added to your kit." : "⏱ +30s Time Boost added to your kit.");
   }
   function buyHealth() {
     if (profile.lives >= MAX_LIVES) { setMsg("Lives already full."); return; }

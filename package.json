@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "smoke": "esbuild app/page.js --bundle --format=cjs --jsx=automatic --loader:.js=jsx --outfile=tests/page.bundle.cjs --external:react --external:react-dom --log-level=error && node tests/smoke.cjs"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -14,7 +15,9 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "eslint": "8.57.0",
-    "eslint-config-next": "14.2.5"
+    "eslint-config-next": "14.2.5",
+    "jsdom": "^29.1.1"
   }
 }
