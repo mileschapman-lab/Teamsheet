@@ -26,6 +26,7 @@ const FLAG_CODE = {
   "🇦🇺": "au", "🇧🇦": "ba", "🇧🇷": "br", "🇬🇭": "gh", "🇵🇹": "pt",
 };
 function Flag({ emoji, size = 30 }) {
+  if (!emoji || emoji === "⚽") return null;   // unknown nationality: show nothing, not a placeholder
   const code = FLAG_CODE[emoji];
   if (!code) return <span style={{ fontSize: size * 0.7 }}>{emoji}</span>;
   return (
@@ -75,6 +76,10 @@ export default function Page() {
   // hydrate from localStorage on mount
   useEffect(() => {
     let p = loadProfile() || freshProfile();
+    // TESTING ONLY — remove before launch: top up existing profiles so hints,
+    // refills and the store can actually be tested. (startingCoins only
+    // applies to brand-new profiles.)
+    if ((p.coins || 0) < ECONOMY.startingCoins) p = { ...p, coins: ECONOMY.startingCoins };
     const tk = todayKey();
     if (p.day !== tk) { // new day → reset daily progress (keep streak/coins)
       p = { ...p, day: tk, dayResults: [], dayCurrent: 0, dayFinished: false };
@@ -429,6 +434,7 @@ function LevelRun({ levelIndex, profile, setProfile, onExit }) {
   const setPuzzles = level.puzzles.map((idx) => BANK[idx]);
   const [step, setStep] = useState(0);     // which puzzle in the set
   const [failed, setFailed] = useState(false);
+  const [failedDone, setFailedDone] = useState(false);
   const [done, setDone] = useState(false);
 
   // live countdown tick for the out-of-lives screen
@@ -481,12 +487,23 @@ function LevelRun({ levelIndex, profile, setProfile, onExit }) {
       if (s.lives <= 0) {
         setFailed(true); // will show gate on next render via lives<=0
       } else {
-        // continue to next puzzle in the set (or finish if last)
+        // continue to next puzzle, or end WITHOUT celebration if that was the last
         const isLast = step + 1 >= setPuzzles.length;
-        if (isLast) { setDone(true); }
+        if (isLast) { setFailedDone(true); }
         else setTimeout(() => setStep((s2) => s2 + 1), 900);
       }
     }
+  }
+
+  if (failedDone) {
+    return (
+      <div className="center" style={{ marginTop: 26, animation: "pop .4s ease both" }}>
+        <div className="disp" style={{ fontSize: 15, letterSpacing: ".16em", color: "var(--red)" }}>FULL TIME</div>
+        <div className="disp" style={{ fontSize: 34, color: "var(--cream)", margin: "8px 0 4px" }}>{level.name} NOT CLEARED</div>
+        <div className="muted" style={{ color: "var(--line)" }}>Solve the final puzzle to clear the level — no coins this time.</div>
+        <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>BACK TO LEVELS →</button>
+      </div>
+    );
   }
 
   if (done) {

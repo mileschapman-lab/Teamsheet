@@ -116,6 +116,10 @@ function tryBuild(ans) {
   const sol = solve(clues);
   if (sol.length !== 1 || sol[0] !== ans) return null;
   if (clubs.size < 2) return null;
+  // no club may dominate: at most 2 of the 4 clues from any one shared club
+  const perClub = {};
+  for (const sc of clues.map(m2 => sharedClubSeasons(ans, m2))) perClub[sc.club] = (perClub[sc.club] || 0) + 1;
+  if (Math.max(...Object.values(perClub)) >= 3) return null;
   // clue recognizability: at least 3 of 4 clues fame>=2
   const famous = clues.filter(c => fame(c) >= 2).length;
   if (famous < 3) return null;
@@ -136,8 +140,15 @@ function disp(c) {
   if (!p.web) return name;
   let web = p.web.replace(/^[A-Z]\./, "");            // "B.Fernandes" -> "Fernandes"
   const toks = name.split(/\s+/);
-  if (web.includes(" ")) return web;                    // already a display name ("Bernardo Silva")
-  if (web.toLowerCase() === toks[0].toLowerCase()) return web;  // mononym (Dele, Adama)
+  const nameL = name.toLowerCase(), webL = web.toLowerCase();
+  if (web.includes(" ")) {
+    // surname-with-space ("De Bruyne", "Van Dijk"): if it ENDS the full name,
+    // prepend the first name; otherwise it's already a display name ("Bernardo Silva").
+    if (nameL.endsWith(webL) && nameL !== webL) return `${toks[0]} ${web}`;
+    return web;
+  }
+  if (webL === toks[0].toLowerCase()) return name;      // first-name web ("Virgil") -> full name
+  if (!toks.map(t => t.toLowerCase()).includes(webL)) return web; // nickname mononym (Fabinho)
   return `${toks[0]} ${web}`;                           // "Bruno Fernandes", "Mohamed Salah"
 }
 

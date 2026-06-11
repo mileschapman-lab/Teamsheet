@@ -39,9 +39,11 @@ function displayMap(season) {
     const full = `${r[iF]} ${r[iS]}`.trim();
     let web = (r[iW] || "").replace(/^[A-Z]\./, "");
     const first = full.split(/\s+/)[0];
-    const d = web.includes(" ") ? web
-      : web.toLowerCase() === first.toLowerCase() ? web
-      : !full.toLowerCase().split(/\s+/).includes(web.toLowerCase()) ? web
+    const fullL = full.toLowerCase(), webL = web.toLowerCase();
+    const d = web.includes(" ")
+      ? (fullL.endsWith(webL) && fullL !== webL ? `${first} ${web}` : web)
+      : webL === first.toLowerCase() ? full
+      : !fullL.split(/\s+/).includes(webL) ? web
       : `${first} ${web}`;
     m[full] = d;
     const c = parseInt(r[iC] || "0", 10);

@@ -38,7 +38,15 @@ source today is FPL. The adapter job, runnable on any normal machine or the
 production server:
 
 1. Download `transfermarkt-datasets.zip` (link in their README).
-2. Filter `appearances` to `competition_id = GB1` (Premier League).
+2. Filter `appearances` to the Premier League (`GB1`) PLUS the other major
+   leagues (`ES1` La Liga, `IT1` Serie A, `L1` Bundesliga, `FR1` Ligue 1, and
+   `NL1`/`PO1` for completeness). Answers and puzzles stay PL-centric, but the
+   teammate graph then includes foreign stints — so puzzles can use links like
+   "played together at Real Madrid". IMPORTANT: foreign coverage must be
+   COMPLETE for the included competitions, never partial — the single-answer
+   guarantee depends on the solver seeing every teammate edge that exists.
+   Partial foreign data would wrongly reject knowledgeable players' valid
+   answers (the exact bug class fixed in June 2026).
 3. Map rows to this pipeline's appearance shape:
    `{ code: player_id, name, web: player_name, season: derived from date,
       club: club name, pos: position, minutes: minutes_played, cost: market_value_proxy }`
