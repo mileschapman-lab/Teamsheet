@@ -29,7 +29,7 @@ const Page = require("./page.bundle.cjs").default;
       if (playBtn) { await act(async () => { playBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); }); console.log("step5 ✓ entered level:", /FIND THE MISSING PLAYER|name the missing two/i.test(document.body.textContent) ? "puzzle visible" : "??"); }
     }
     // ---- challenge lobby + incoming-invite popup ----
-    const comp = [...document.querySelectorAll("button")].find(b => b.textContent.trim().toLowerCase().includes("competitions"));
+    const comp = [...document.querySelectorAll("button")].find(b => b.textContent.trim().toLowerCase().includes("compete"));
     if (comp) {
       await act(async () => { comp.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
       const startBtn = [...document.querySelectorAll("button")].find(b => /START ⚔️/.test(b.textContent));

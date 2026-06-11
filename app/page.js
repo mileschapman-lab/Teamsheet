@@ -179,8 +179,11 @@ export default function Page() {
       )}
 
       <div className="tabs">
-        {["daily", "levels", "competitions", "store", "stats"].map((t) => (
-          <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
+        {[["daily", "📅", "Daily"], ["levels", "🪜", "Levels"], ["competitions", "⚔️", "Compete"], ["store", "🛒", "Store"], ["stats", "📊", "Stats"]].map(([t, ic, lb]) => (
+          <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>
+            <span style={{ display: "block", fontSize: "clamp(14px,2.2vh,17px)", lineHeight: 1 }}>{ic}</span>
+            <span style={{ display: "block", fontSize: "clamp(8.5px,1.3vh,10.5px)", marginTop: 2 }}>{lb}</span>
+          </button>
         ))}
       </div>
       {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} goStore={() => setTab("store")} goChallenge={() => setTab("competitions")} />}
@@ -471,6 +474,15 @@ function Outcome({ solved, alt, ans }) {
 }
 
 // ---- DAILY mode ----------------------------------------------------------
+function ChallengeBanner({ goChallenge }) {
+  return (
+    <button onClick={goChallenge} className="card paper" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 14px", marginBottom: 10, cursor: "pointer", textAlign: "left" }}>
+      <span style={{ fontWeight: 800, color: "var(--navy)" }}>⚔️ Challenge a friend <span className="muted">· same 3 puzzles, winner takes the bragging rights</span></span>
+      <span className="disp" style={{ color: "var(--red)", fontSize: 18 }}>→</span>
+    </button>
+  );
+}
+
 function Daily({ profile, setProfile, matchday, puzzles, goStore, goChallenge }) {
   const current = profile.dayCurrent;
   const finishedToday = profile.dayFinished;
@@ -498,7 +510,7 @@ function Daily({ profile, setProfile, matchday, puzzles, goStore, goChallenge })
     }
   }
 
-  if (finishedToday) return <DailyDone profile={profile} matchday={matchday} goChallenge={goChallenge} />;
+  if (finishedToday) return (<div><ChallengeBanner goChallenge={goChallenge} /><DailyDone profile={profile} matchday={matchday} goChallenge={goChallenge} /></div>);
 
   const puzzle = puzzles[current];
   const header = (
@@ -516,7 +528,7 @@ function Daily({ profile, setProfile, matchday, puzzles, goStore, goChallenge })
     </>
   );
 
-  return <PuzzleView key={current} puzzle={puzzle} profile={profile} setProfile={setProfile} onResolve={resolve} header={header} goStore={goStore} />;
+  return (<div><ChallengeBanner goChallenge={goChallenge} /><PuzzleView key={current} puzzle={puzzle} profile={profile} setProfile={setProfile} onResolve={resolve} header={header} goStore={goStore} /></div>);
 }
 
 function DailyDone({ profile, matchday, goChallenge }) {
