@@ -183,8 +183,8 @@ export default function Page() {
           <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} goStore={() => setTab("store")} />}
-      {tab === "levels" && <Levels profile={profile} setProfile={setProfile} goStore={() => setTab("store")} />}
+      {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} goStore={() => setTab("store")} goChallenge={() => setTab("competitions")} />}
+      {tab === "levels" && <Levels profile={profile} setProfile={setProfile} goStore={() => setTab("store")} goChallenge={() => setTab("competitions")} />}
       {tab === "competitions" && <Competitions profile={profile} setProfile={setProfile} challenge={challenge} setChallenge={setChallenge} goStore={() => setTab("store")} />}
       {tab === "store" && <Store profile={profile} setProfile={setProfile} />}
       {tab === "stats" && <Stats profile={profile} />}
@@ -471,7 +471,7 @@ function Outcome({ solved, alt, ans }) {
 }
 
 // ---- DAILY mode ----------------------------------------------------------
-function Daily({ profile, setProfile, matchday, puzzles, goStore }) {
+function Daily({ profile, setProfile, matchday, puzzles, goStore, goChallenge }) {
   const current = profile.dayCurrent;
   const finishedToday = profile.dayFinished;
 
@@ -498,7 +498,7 @@ function Daily({ profile, setProfile, matchday, puzzles, goStore }) {
     }
   }
 
-  if (finishedToday) return <DailyDone profile={profile} matchday={matchday} />;
+  if (finishedToday) return <DailyDone profile={profile} matchday={matchday} goChallenge={goChallenge} />;
 
   const puzzle = puzzles[current];
   const header = (
@@ -519,7 +519,7 @@ function Daily({ profile, setProfile, matchday, puzzles, goStore }) {
   return <PuzzleView key={current} puzzle={puzzle} profile={profile} setProfile={setProfile} onResolve={resolve} header={header} goStore={goStore} />;
 }
 
-function DailyDone({ profile, matchday }) {
+function DailyDone({ profile, matchday, goChallenge }) {
   const [msg, setMsg] = useState("");
   const results = profile.dayResults;
   const wins = results.filter((r) => r !== "miss").length;
@@ -549,19 +549,20 @@ function DailyDone({ profile, matchday }) {
       <p className="muted" style={{ color: "var(--line)", marginTop: 16, opacity: .8, maxWidth: 330, marginInline: "auto", fontSize: 11 }}>
         Come back tomorrow for a new matchday. Try Practice mode for more puzzles any time.
       </p>
+      {goChallenge && <button className="big" onClick={goChallenge} style={{ maxWidth: 300, margin: "12px auto 0", background: "var(--navy)", color: "var(--cream)" }}>⚔️ CHALLENGE A FRIEND</button>}
     </div>
   );
 }
 
 // ---- LEVELS mode (progression with lives) --------------------------------
-function Levels({ profile, setProfile, goStore }) {
+function Levels({ profile, setProfile, goStore, goChallenge }) {
   const [activeLevel, setActiveLevel] = useState(null); // index into LEVELS, or null = map
 
   if (activeLevel === null) {
     return <LevelMap profile={profile} setProfile={setProfile} goStore={goStore} onPlay={(i) => setActiveLevel(i)} />;
   }
   return (
-    <LevelRun goStore={goStore}
+    <LevelRun goStore={goStore} goChallenge={goChallenge}
       key={activeLevel}
       levelIndex={activeLevel}
       profile={profile}
@@ -574,18 +575,25 @@ function Levels({ profile, setProfile, goStore }) {
 function LevelMap({ profile, setProfile, onPlay, goStore }) {
   const reached = profile.levelReached;
   const [pending, setPending] = useState(null);        // level index awaiting the pre-level popup
+  const [showDone, setShowDone] = useState(false);      // completed levels collapse by default
   const openRef = useRef(null);
   useEffect(() => { openRef.current?.scrollIntoView({ block: "center", behavior: "instant" }); }, []);
   const inv = profile.boosters || { freeze: 0, boost: 0 };
   return (
     <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
       <div className="center" style={{ margin: "6px 0 14px" }}>
-        <span className="muted" style={{ letterSpacing: ".18em", color: "var(--gold)" }}>LEVELS · {reached}/{LEVELS.length} COMPLETE</span>
+        <span className="disp" style={{ letterSpacing: ".18em", color: "var(--gold)", fontSize: 18 }}>LEVEL {Math.min(reached, LEVELS.length - 1) + 1}</span>
+        {reached > 0 && (
+          <div style={{ marginTop: 4 }}>
+            <button className="btn ghost" onClick={() => setShowDone(v => !v)} style={{ fontSize: 11 }}>✓ {reached} cleared {showDone ? "· HIDE ▴" : "· SHOW ▾"}</button>
+          </div>
+        )}
       </div>
       {LEVELS.map((lvl, i) => {
         const done = i < reached;
         const open = i === reached;
         const locked = i > reached;
+        if (done && !showDone) return null;
         return (
           <button key={i} ref={open ? openRef : null} disabled={locked} onClick={() => setPending(i)}
             className="card paper" style={{
@@ -607,6 +615,13 @@ function LevelMap({ profile, setProfile, onPlay, goStore }) {
           </button>
         );
       })}
+      {reached >= LEVELS.length && (
+        <div className="card paper center" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 34 }}>🏆</div>
+          <div className="disp" style={{ fontSize: 22, color: "var(--navy)" }}>LADDER CLEARED — FOR NOW</div>
+          <div className="muted" style={{ marginTop: 4 }}>New fixtures, windows and legends are added regularly. The daily and challenges never stop.</div>
+        </div>
+      )}
       <p className="muted" style={{ color: "var(--line)", textAlign: "center", fontSize: 11, opacity: .8, marginTop: 6 }}>
         Connection levels: 3 puzzles, 3 guesses each. Match levels: name the fixture's two missing players. Every wrong guess costs a life, and the clock is ticking.
       </p>
@@ -635,7 +650,7 @@ function LevelMap({ profile, setProfile, onPlay, goStore }) {
   );
 }
 
-function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
+function LevelRun({ levelIndex, profile, setProfile, onExit, goStore, goChallenge }) {
   const level = LEVELS[levelIndex];
   const setPuzzles = (level.puzzles || []).map((idx) => BANK[idx]);   // match levels have no puzzles array
   const [step, setStep] = useState(0);     // which puzzle in the set
@@ -763,7 +778,7 @@ function TransferLevel({ level, levelIndex, profile, setProfile, onExit, goStore
   const [attempt, setAttempt] = useState(0);
   const [done, setDone] = useState(false);
   const [failedDone, setFailedDone] = useState(false);
-  if (done) return <LevelComplete level={level} cleared onExit={onExit} profile={profile} setProfile={setProfile} />;
+  if (done) return <LevelComplete level={level} cleared onExit={onExit} profile={profile} setProfile={setProfile} goChallenge={goChallenge} />;
   if (failedDone) return (
     <div className="center" style={{ marginTop: 26, animation: "pop .4s ease both" }}>
       <div className="disp" style={{ fontSize: 15, letterSpacing: ".16em", color: "var(--red)" }}>WINDOW SLAMMED SHUT</div>
@@ -827,10 +842,10 @@ function TransferQ({ q, step, total, profile, setProfile, onDone, onExit, goStor
   }
   return (
     <div style={{ animation: "pop .3s ease both" }}>
-      <div className="center" style={{ marginBottom: 8 }}>
-        <button className="btn ghost" onClick={onExit} style={{ float: "left" }}>← Levels</button>
-        <span className="muted" style={{ letterSpacing: ".18em" }}>🔁 TRANSFER WINDOW · {step + 1}/{total}</span>
-        <span style={{ float: "right", display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        <button className="btn ghost" onClick={onExit}>← Levels</button>
+        <span className="muted" style={{ letterSpacing: ".14em", textAlign: "center", flex: 1, minWidth: 150 }}>🔁 TRANSFER WINDOW · {step + 1}/{total}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <TimerPill left={timer.left} frozen={timer.frozen} />
           <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)}</span>
         </span>
@@ -961,7 +976,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
     </div>
   );
 
-  if (done) return <LevelComplete level={level} cleared onExit={onExit} profile={profile} setProfile={setProfile} />;
+  if (done) return <LevelComplete level={level} cleared onExit={onExit} profile={profile} setProfile={setProfile} goChallenge={goChallenge} />;
 
   return (
     <div style={{ animation: "pop .3s ease both" }}>
@@ -1063,7 +1078,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
   );
 }
 
-function LevelComplete({ level, cleared, onExit, profile, setProfile }) {
+function LevelComplete({ level, cleared, onExit, profile, setProfile, goChallenge }) {
   const [doubled, setDoubled] = useState(false);
   const reward = profile.lastReward || ECONOMY.earn.levelComplete;
   function watchAdDouble() {
@@ -1081,6 +1096,7 @@ function LevelComplete({ level, cleared, onExit, profile, setProfile }) {
         <button className="big" onClick={watchAdDouble} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--grass)", color: "var(--cream)", boxShadow: "3px 3px 0 var(--navy)" }}>▶ WATCH AD — DOUBLE TO {reward * 2}</button>
       )}
       <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "10px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>CONTINUE →</button>
+      {goChallenge && <button className="big" onClick={goChallenge} style={{ maxWidth: 280, margin: "10px auto 0", background: "var(--navy)", color: "var(--cream)" }}>⚔️ CHALLENGE A FRIEND</button>}
     </div>
   );
 }
@@ -1235,9 +1251,10 @@ function ChallengeRun({ seed, opp, profile, setProfile, goStore, onExit, onFinis
   }
   if (done) return null;
   const header = (
-    <div className="center" style={{ marginBottom: 10 }}>
-      <button className="btn ghost" onClick={onExit} style={{ float: "left" }}>← Quit</button>
-      <span className="muted" style={{ letterSpacing: ".18em" }}>⚔️ CHALLENGE · {step + 1}/{CHALLENGE_SIZE}{opp ? ` · vs ${opp.name}` : ""}</span>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+      <button className="btn ghost" onClick={onExit}>← Quit</button>
+      <span className="muted" style={{ letterSpacing: ".14em", textAlign: "center", flex: 1 }}>⚔️ CHALLENGE · {step + 1}/{CHALLENGE_SIZE}{opp ? ` · vs ${opp.name}` : ""}</span>
+      <span style={{ width: 52 }} />
     </div>
   );
   return <PuzzleView key={`${seed}-${step}`} puzzle={puzzles[step]} profile={profile} setProfile={setProfile}
