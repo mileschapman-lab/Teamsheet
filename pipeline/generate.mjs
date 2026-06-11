@@ -79,8 +79,8 @@ const fameScore = {};
   }
 }
 function fame(c) { const f = fameScore[c]; return f >= 0.93 ? 3 : f >= 0.72 ? 2 : 1; }
-const ANSWER_MIN = 5400;   // ~60 full games: answers are real, established players
-const CLUE_MIN = 3600;     // clues must be recognizable squad regulars
+const ANSWER_MIN = 4500;   // ~50 full matches — established PL careers
+const CLUE_MIN = 3200;     // clues must be recognizable squad regulars
 const answers = ALL.filter(c => P[c].minutes >= ANSWER_MIN && NB.get(c).size >= 8);
 const cluePool = new Set(ALL.filter(c => P[c].minutes >= CLUE_MIN));
 
@@ -89,7 +89,8 @@ function eraBand(seasons) {
   const mid = years.sort((a, b) => a - b)[Math.floor(years.length / 2)];
   if (mid >= 2023) return "Mid 2020s";
   if (mid >= 2020) return "Early 2020s";
-  return "Late 2010s";
+  if (mid >= 2016) return "Late 2010s";
+  return "Early 2010s";
 }
 
 // ---- generator -----------------------------------------------------------------
@@ -120,9 +121,10 @@ function tryBuild(ans) {
   const perClub = {};
   for (const sc of clues.map(m2 => sharedClubSeasons(ans, m2))) perClub[sc.club] = (perClub[sc.club] || 0) + 1;
   if (Math.max(...Object.values(perClub)) >= 3) return null;
-  // clue recognizability: at least 3 of 4 clues fame>=2
+  // clue recognizability: easy/medium need 3 of 4 famous clues; hard may run 2
   const famous = clues.filter(c => fame(c) >= 2).length;
-  if (famous < 3) return null;
+  const need = fame(ans) >= 2 ? 3 : 2;
+  if (famous < need) return null;
   const shared = clues.map(m => sharedClubSeasons(ans, m));
   const allSeasons = shared.flatMap(s => s.seasons);
   return {
@@ -155,7 +157,7 @@ function disp(c) {
 const bank = []; const used = new Set();
 for (const a of answers) {
   if (used.has(a)) continue;
-  for (let t = 0; t < 30; t++) {
+  for (let t = 0; t < 60; t++) {
     const p = tryBuild(a);
     if (p) { bank.push(p); used.add(a); break; }
   }

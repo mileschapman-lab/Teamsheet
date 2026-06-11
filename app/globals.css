@@ -115,3 +115,30 @@ input{font-family:inherit;}
 .timerpill{display:inline-flex;align-items:center;gap:6px;font-weight:800;border:2px solid var(--navy);border-radius:999px;padding:4px 12px;background:var(--cream);color:var(--navy);}
 .timerpill.low{background:var(--red);color:var(--cream);animation:shake .5s infinite;}
 .boostrow{display:flex;align-items:center;justify-content:space-between;border:2px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:8px;background:var(--cream);}
+
+/* ---- one-screen compaction: the play screens should fit a phone viewport ----
+   Strategy: fluid sizes via clamp() everywhere height accumulates, plus a
+   short-viewport tier. The level MAP scrolls by design (it's a map); the
+   PUZZLE and MATCH screens are what must fit. */
+.card{padding:clamp(8px,1.6vh,18px) clamp(10px,2vw,16px);}
+.sticker{padding:clamp(5px,1.1vh,13px) clamp(9px,2vw,14px);margin-bottom:clamp(5px,1vh,11px);}
+.srow{gap:clamp(7px,1.5vw,11px);}
+.sname{font-size:clamp(13px,1.9vh,17px);}
+.spos{font-size:clamp(10px,1.4vh,12px);}
+.sflag{width:clamp(24px,3.6vh,34px) !important;height:clamp(24px,3.6vh,34px) !important;}
+.snum{font-size:clamp(15px,2.4vh,22px);}
+.slot{padding:clamp(8px,1.6vh,18px) 12px;}
+.ibox{margin-top:clamp(6px,1.2vh,16px);}
+.ibox input{padding:clamp(9px,1.6vh,15px) 16px;font-size:clamp(14px,1.9vh,17px);}
+.big{padding:clamp(9px,1.6vh,14px);}
+.timerpill{padding:clamp(2px,.5vh,4px) clamp(8px,1.6vw,12px);font-size:clamp(12px,1.7vh,14px);}
+.boostrow{padding:clamp(5px,1vh,9px) clamp(8px,1.6vw,12px);margin-top:clamp(4px,.8vh,8px);}
+.chip{font-size:clamp(10px,1.4vh,12px);padding:clamp(2px,.4vh,4px) clamp(6px,1.2vw,9px);}
+.btn{font-size:clamp(11px,1.5vh,13px);padding:clamp(5px,.9vh,8px) clamp(8px,1.6vw,12px);}
+.muted{font-size:clamp(11px,1.5vh,13px);}
+/* short phones / landscape: shave the decorations */
+@media (max-height: 760px){
+  .card{box-shadow:4px 4px 0 var(--red);}
+  .sticker{box-shadow:2px 2px 0 var(--navy);border-width:2px;}
+  .disp{letter-spacing:.01em;}
+}

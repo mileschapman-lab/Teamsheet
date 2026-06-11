@@ -28,6 +28,18 @@ const Page = require("./page.bundle.cjs").default;
       const playBtn = [...document.querySelectorAll("button")].find(b => /PLAY →/.test(b.textContent));
       if (playBtn) { await act(async () => { playBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); }); console.log("step5 ✓ entered level:", /FIND THE MISSING PLAYER|name the missing two/i.test(document.body.textContent) ? "puzzle visible" : "??"); }
     }
+    // ---- challenge lobby + incoming-invite popup ----
+    const comp = [...document.querySelectorAll("button")].find(b => b.textContent.trim().toLowerCase().includes("competitions"));
+    if (comp) {
+      await act(async () => { comp.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+      const startBtn = [...document.querySelectorAll("button")].find(b => /START ⚔️/.test(b.textContent));
+      if (!startBtn) throw new Error("challenge lobby missing");
+      await act(async () => { startBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+      const inRun = /CHALLENGE · 1\//.test(document.body.textContent);
+      console.log("step6 ✓ challenge run started:", inRun ? "yes" : "NO");
+      const quit = [...document.querySelectorAll("button")].find(b => /← Quit/.test(b.textContent));
+      if (quit) await act(async () => { quit.dispatchEvent(new window.MouseEvent("click", { bubbles: true })); });
+    }
     console.log("SMOKE PASS");
   } catch (e) {
     console.log("SMOKE FAIL:", e && (e.stack || "").split("\n").slice(0,6).join("\n"));

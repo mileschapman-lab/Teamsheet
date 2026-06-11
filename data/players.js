@@ -6,8 +6,55 @@
 
 import { GEN_PLAYERS, GEN_BANK, GEN_DAILY } from "./generated";
 import { MATCHES } from "./matches";
+import { TRANSFER_BANK } from "./transfers";
 
 const CURATED_PLAYERS = {
+  henry: ["Thierry Henry", "Arsenal / Barcelona", "FW", "🇫🇷", "ST", 97],
+  vieira: ["Patrick Vieira", "Arsenal / Man City", "MF", "🇫🇷", "CDM", 93],
+  pires: ["Robert Pirès", "Arsenal / Aston Villa", "MF", "🇫🇷", "LM", 90],
+  lehmann: ["Jens Lehmann", "Arsenal", "GK", "🇩🇪", "GK", 86],
+  overmars: ["Marc Overmars", "Arsenal / Barcelona", "FW", "🇳🇱", "LW", 88],
+  drogba: ["Didier Drogba", "Chelsea", "FW", "🇨🇮", "ST", 93],
+  gerrard: ["Steven Gerrard", "Liverpool", "MF", "🏴", "CM", 95],
+  beckham: ["David Beckham", "Man Utd / Real Madrid / Milan", "MF", "🏴", "RM", 92],
+  pschmeichel: ["Peter Schmeichel", "Man Utd / Man City / Aston Villa", "GK", "🇩🇰", "GK", 94],
+  gneville: ["Gary Neville", "Man Utd", "DF", "🏴", "RB", 87],
+  mcallister: ["Gary McAllister", "Leeds / Coventry / Liverpool", "MF", "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "CM", 85],
+  strachan: ["Gordon Strachan", "Man Utd / Leeds / Coventry", "MF", "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "RM", 84],
+  roblee: ["Rob Lee", "Newcastle / Derby", "MF", "🏴", "CM", 83],
+  beardsley: ["Peter Beardsley", "Newcastle / Liverpool / Everton", "FW", "🏴", "SS", 89],
+  klinsmann: ["Jürgen Klinsmann", "Tottenham / Bayern", "FW", "🇩🇪", "ST", 91],
+  anderton: ["Darren Anderton", "Tottenham / Birmingham", "MF", "🏴", "RM", 84],
+  berbatov: ["Dimitar Berbatov", "Tottenham / Man Utd / Fulham", "FW", "🇧🇬", "ST", 89],
+  vidic: ["Nemanja Vidić", "Man Utd / Inter", "DF", "🇷🇸", "CB", 91],
+  rkeane: ["Robbie Keane", "Tottenham / Liverpool / Leeds", "FW", "🇮🇪", "ST", 88],
+  hazard: ["Eden Hazard", "Chelsea / Real Madrid", "FW", "🇧🇪", "LW", 93],
+  mata: ["Juan Mata", "Chelsea / Man Utd", "MF", "🇪🇸", "CAM", 87],
+  walcott: ["Theo Walcott", "Arsenal / Everton / Southampton", "FW", "🏴", "RW", 84],
+  modric: ["Luka Modrić", "Tottenham / Real Madrid", "MF", "🇭🇷", "CM", 94],
+  friedel: ["Brad Friedel", "Blackburn / Aston Villa / Tottenham", "GK", "🇺🇸", "GK", 84],
+  benzema: ["Karim Benzema", "Lyon / Real Madrid", "FW", "🇫🇷", "ST", 94],
+  marcelo: ["Marcelo", "Real Madrid", "DF", "🇧🇷", "LB", 90],
+  tevez: ["Carlos Tevez", "West Ham / Man Utd / Man City / Juventus", "FW", "🇦🇷", "ST", 90],
+  hargreaves: ["Owen Hargreaves", "Bayern / Man Utd / Man City", "MF", "🏴", "CDM", 84],
+  lescott: ["Joleon Lescott", "Everton / Man City / West Brom", "DF", "🏴", "CB", 83],
+  king: ["Ledley King", "Tottenham", "DF", "🏴", "CB", 87],
+  adebayor: ["Emmanuel Adebayor", "Arsenal / Man City / Tottenham", "FW", "🇹🇬", "ST", 86],
+  kolarov: ["Aleksandar Kolarov", "Man City / Roma", "DF", "🇷🇸", "LB", 85],
+  ytoure: ["Yaya Touré", "Barcelona / Man City", "MF", "🇨🇮", "CM", 91],
+  rvn: ["Ruud van Nistelrooy", "Man Utd / Real Madrid", "FW", "🇳🇱", "ST", 93],
+  silvestre: ["Mikaël Silvestre", "Man Utd / Arsenal", "DF", "🇫🇷", "CB", 82],
+  raul: ["Raúl", "Real Madrid / Schalke", "FW", "🇪🇸", "ST", 93],
+  casillas: ["Iker Casillas", "Real Madrid / Porto", "GK", "🇪🇸", "GK", 94],
+  hartson: ["John Hartson", "Arsenal / West Ham / Celtic", "FW", "🏴󠁧󠁢󠁷󠁬󠁳󠁿", "ST", 82],
+  seaman: ["David Seaman", "Arsenal / Man City", "GK", "🏴", "GK", 89],
+  distin: ["Sylvain Distin", "Man City / Portsmouth / Everton", "DF", "🇫🇷", "CB", 82],
+  swp: ["Shaun Wright-Phillips", "Man City / Chelsea / QPR", "MF", "🏴", "RW", 83],
+  sparker: ["Scott Parker", "Charlton / Chelsea / West Ham / Tottenham / Fulham", "MF", "🏴", "CDM", 84],
+  noble: ["Mark Noble", "West Ham", "MF", "🏴", "CM", 81],
+  rgreen: ["Robert Green", "Norwich / West Ham / QPR", "GK", "🏴", "GK", 81],
+  gillespie: ["Keith Gillespie", "Man Utd / Newcastle / Blackburn", "MF", "🇬🇧", "RM", 80],
+
   aguero: ["Sergio Agüero", "Man City", "FW", "🇦🇷", "ST", 90],
   albrighton: ["Marc Albrighton", "Aston Villa / Leicester", "MF", "🏴", "RM", 74],
   anelka: ["Nicolas Anelka", "Arsenal / Liverpool / Man City / Bolton / Chelsea", "FW", "🇫🇷", "ST", 84],
@@ -93,6 +140,18 @@ const CURATED_PLAYERS = {
 export const POSNAME = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
 
 const CURATED_BANK = [
+  {clues:["henry","campbell_s","terry","drogba"],answer:"cole_a",valid:["cole_a"],diff:"medium",sharedClubs:["Arsenal","Arsenal","Chelsea","Chelsea"],era:"Mid 2000s"},
+  {clues:["modric","friedel","benzema","marcelo"],answer:"bale",valid:["bale"],diff:"medium",sharedClubs:["Tottenham","Tottenham","Real Madrid","Real Madrid"],era:"Mid 2010s"},
+  {clues:["rooney","ronaldo_c","aguero","lescott"],answer:"tevez",valid:["tevez","hargreaves"],diff:"easy",sharedClubs:["Man Utd","Man Utd","Man City","Man City"],era:"Late 2000s"},
+  {clues:["mcallister","strachan","pschmeichel","beckham"],answer:"cantona",valid:["cantona"],diff:"hard",sharedClubs:["Leeds","Leeds","Man Utd","Man Utd"],era:"1990s"},
+  {clues:["klinsmann","anderton","beckham","yorke"],answer:"sheringham",valid:["sheringham"],diff:"medium",sharedClubs:["Tottenham","Tottenham","Man Utd","Man Utd"],era:"Late 1990s"},
+  {clues:["berbatov","defoe","gerrard","torres"],answer:"rkeane",valid:["rkeane"],diff:"medium",sharedClubs:["Tottenham","Tottenham","Liverpool","Liverpool"],era:"Late 2000s"},
+  {clues:["fabregas","vanpersie","kolarov","ytoure"],answer:"adebayor",valid:["adebayor","toure_k"],diff:"medium",sharedClubs:["Arsenal","Arsenal","Man City","Man City"],era:"Early 2010s"},
+  {clues:["scholes","silvestre","raul","casillas"],answer:"rvn",valid:["rvn","beckham"],diff:"medium",sharedClubs:["Man Utd","Man Utd","Real Madrid","Real Madrid"],era:"Mid 2000s"},
+  {clues:["bergkamp","seaman","ferdinand_rio","lampard"],answer:"wright_i",valid:["wright_i","hartson"],diff:"hard",sharedClubs:["Arsenal","Arsenal","West Ham","West Ham"],era:"Late 1990s"},
+  {clues:["distin","anelka","terry","lampard"],answer:"swp",valid:["swp"],diff:"hard",sharedClubs:["Man City","Man City","Chelsea","Chelsea"],era:"Mid 2000s"},
+  {clues:["terry","lampard","noble","rgreen"],answer:"sparker",valid:["sparker"],diff:"hard",sharedClubs:["Chelsea","Chelsea","West Ham","West Ham"],era:"Late 2000s"},
+  {clues:["rkeane","defoe","rooney","vidic"],answer:"berbatov",valid:["berbatov","carrick"],diff:"easy",sharedClubs:["Tottenham","Tottenham","Man Utd","Man Utd"],era:"Late 2000s"},
   {clues:["viduka","lallana","nasri","albrighton"],answer:"milner",valid:["milner"],diff:"easy",sharedClubs:["Leeds","Liverpool","Man City","Aston Villa"],era:"Mid 2010s"},
   {clues:["lallana","debruyne","kante","silva_d"],answer:"sterling",valid:["sterling"],diff:"easy",sharedClubs:["Liverpool","Man City","Chelsea","Man City"],era:"Late 2010s"},
   {clues:["anelka","walker","cole_a","sturridge"],answer:"debruyne",valid:["debruyne"],diff:"easy",sharedClubs:["Chelsea","Man City","Chelsea","Chelsea"],era:"Mid 2010s"},
@@ -188,10 +247,17 @@ export const LEVELS = [];
     LEVELS.push({ type: "match", name: "MATCH DAY", theme: `${m.home} ${m.score} ${m.away}`, match: mi });
     mi++; return true;
   };
-  // rhythm: 1 training (find the missing player), then 1 match day, repeating
-  while (ci + 3 <= _idx.length || mi < MATCHES.length) {
+  // rhythm: training -> match day -> transfer window, repeating
+  let ti = 0;
+  const pushTransfer = () => {
+    if (ti + 3 > TRANSFER_BANK.length) return false;
+    LEVELS.push({ type: "transfer", name: "TRANSFER WINDOW", theme: "Where did he go?", qs: [ti, ti + 1, ti + 2] });
+    ti += 3; return true;
+  };
+  while (ci + 3 <= _idx.length || mi < MATCHES.length || ti + 3 <= TRANSFER_BANK.length) {
     let moved = pushConnect();
     moved = pushMatch() || moved;
+    moved = pushTransfer() || moved;
     if (!moved) break;
   }
 }

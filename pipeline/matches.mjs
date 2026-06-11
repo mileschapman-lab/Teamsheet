@@ -11,6 +11,7 @@
 import fs from "fs";
 import { CANON, FLAGS } from "./nationalities.mjs";
 import { PLAYER_FLAGS } from "./players_meta.mjs";
+const TM_FLAGS = JSON.parse(fs.readFileSync("tm/flags_by_name.json", "utf8"));
 
 const SEASONS = ["2019-20", "2020-21", "2021-22", "2022-23", "2023-24", "2024-25"];
 const BIG = new Set(["Arsenal", "Chelsea", "Liverpool", "Man City", "Man Utd", "Spurs", "Newcastle"]);
@@ -126,7 +127,7 @@ for (const season of SEASONS) {
       const meta = (NAME_META[nm] ||= { pos: null, rating: 0, flag: "" });
       meta.pos = tmPos(nm, meta.pos || r[iPos]);
       meta.rating = Math.max(meta.rating, ratingMapS[r[iName]] || ratingMapS[nm] || 0);
-      meta.flag = FLAGS[nm] || PLAYER_FLAGS[nm] || meta.flag || "";
+      meta.flag = TM_FLAGS[nm] || FLAGS[nm] || PLAYER_FLAGS[nm] || meta.flag || "";
     }
   }
 
@@ -185,7 +186,7 @@ for (const season of SEASONS) {
 // pick the most interesting, spread across seasons
 matches.sort((a, b) => b.interest - a.interest);
 const perSeason = {};
-const chosen = matches.filter(m => (perSeason[m.season] = (perSeason[m.season] || 0) + 1) <= 5).slice(0, 24);
+const chosen = matches.filter(m => (perSeason[m.season] = (perSeason[m.season] || 0) + 1) <= 5).slice(0, 30);
 
 // verify every chosen match
 let bad = 0;

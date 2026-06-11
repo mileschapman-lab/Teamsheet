@@ -6,6 +6,7 @@
 
 import fs from "fs";
 import { DISPLAY_FIX, PLAYER_FLAGS } from "./players_meta.mjs";
+const TM_FLAGS = JSON.parse(fs.readFileSync("tm/flags_by_name.json", "utf8"));
 import { FLAGS as MATCH_FLAGS } from "./nationalities.mjs";
 
 const { bank, players } = JSON.parse(fs.readFileSync("bank_generated.json", "utf8"));
@@ -25,16 +26,35 @@ for (const l of fs.readFileSync("raw/tm_transfers_pl.csv", "utf8").split("\n").s
 // ---- curate: balanced selection from the 180 -----------------------------------
 const byDiff = { easy: [], medium: [], hard: [] };
 for (const b of bank) byDiff[b.diff].push(b);          // already quality-sorted
+// diversity-capped greedy: quality order, but no player may appear in more
+// than CAP chosen puzzles — kills the "same faces over and over" effect.
+function pickDiverse(cands, n, used, cap = 2) {
+  const out = [], rest = [...cands];
+  for (let pass = 0; pass < 3 && out.length < n; pass++) {
+    const limit = cap + pass;                       // relax only if quota can't fill
+    for (let i = 0; i < rest.length && out.length < n; ) {
+      const b = rest[i], ids = [...b.clues, b.answer];
+      if (ids.every((id) => (used.get(id) || 0) < limit)) {
+        ids.forEach((id) => used.set(id, (used.get(id) || 0) + 1));
+        out.push(b); rest.splice(i, 1);
+      } else i++;
+    }
+  }
+  return out;
+}
+const usedLvl = new Map();
 const chosen = [
-  ...byDiff.easy.slice(0, 15),
-  ...byDiff.medium.slice(0, 18),
-  ...byDiff.hard.slice(0, 15),
+  ...pickDiverse(byDiff.easy, 15, usedLvl),
+  ...pickDiverse(byDiff.medium, 30, usedLvl),
+  ...pickDiverse(byDiff.hard, 24, usedLvl),
 ];
-// reserved DAILY pool: next-best puzzles, never used in levels (answers already unique)
+const lvlSet = new Set(chosen);
+const remaining = (d) => byDiff[d].filter((b) => !lvlSet.has(b));
+const usedDaily = new Map();
 const daily = [
-  ...byDiff.easy.slice(15, 27),
-  ...byDiff.medium.slice(18, 32),
-  ...byDiff.hard.slice(15, 27),
+  ...pickDiverse(remaining("easy"), 12, usedDaily),
+  ...pickDiverse(remaining("medium"), 20, usedDaily),
+  ...pickDiverse(remaining("hard"), 16, usedDaily),
 ];
 console.log(`Reserved ${daily.length} puzzles for the daily pool`);
 console.log(`Curated ${chosen.length} generated puzzles for the app (of ${bank.length})`);
@@ -66,7 +86,7 @@ for (const c of allIds) {
 let plines = [];
 for (const c of allIds.sort((a, b) => players[a].display.localeCompare(players[b].display))) {
   const p = players[c];
-  const flag = PLAYER_FLAGS[p.display] || MATCH_FLAGS[p.display] || "";
+  const flag = TM_FLAGS[p.display] || PLAYER_FLAGS[p.display] || MATCH_FLAGS[p.display] || "";
   plines.push(`  g${c}: [${JSON.stringify(p.display)}, ${JSON.stringify(clubsSummary(c))}, ${JSON.stringify(POSMAP[p.mainPos])}, ${JSON.stringify(flag)}, ${JSON.stringify(TMPOS[fold(p.display)] || p.mainPos)}, ${rating(c)}],`);
 }
 
