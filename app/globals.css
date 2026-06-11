@@ -107,3 +107,11 @@ input{font-family:inherit;}
 .statbox{border:3px solid var(--navy);border-radius:12px;padding:16px;text-align:center;background:var(--paper);box-shadow:3px 3px 0 var(--navy);}
 .statbox .v{font-family:'Anton';font-size:34px;color:var(--navy);line-height:1;}
 .statbox .k{font-size:10.5px;letter-spacing:.1em;color:var(--dim);font-weight:700;text-transform:uppercase;margin-top:4px;}
+
+/* ---- modal overlays (daily popup, pre-level popup) ---- */
+.overlay{position:fixed;inset:0;background:rgba(10,16,30,.78);display:grid;place-items:center;z-index:50;padding:18px;}
+.modal{background-color:var(--paper);background-image:radial-gradient(var(--paperDk) 1.2px,transparent 1.2px);background-size:8px 8px;
+  color:var(--navy);border:3px solid var(--navy);border-radius:18px;box-shadow:8px 8px 0 var(--red);padding:20px 18px;width:100%;max-width:380px;animation:pop .3s ease both;}
+.timerpill{display:inline-flex;align-items:center;gap:6px;font-weight:800;border:2px solid var(--navy);border-radius:999px;padding:4px 12px;background:var(--cream);color:var(--navy);}
+.timerpill.low{background:var(--red);color:var(--cream);animation:shake .5s infinite;}
+.boostrow{display:flex;align-items:center;justify-content:space-between;border:2px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:8px;background:var(--cream);}

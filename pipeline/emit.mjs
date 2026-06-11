@@ -30,11 +30,18 @@ const chosen = [
   ...byDiff.medium.slice(0, 18),
   ...byDiff.hard.slice(0, 15),
 ];
+// reserved DAILY pool: next-best puzzles, never used in levels (answers already unique)
+const daily = [
+  ...byDiff.easy.slice(15, 27),
+  ...byDiff.medium.slice(18, 32),
+  ...byDiff.hard.slice(15, 27),
+];
+console.log(`Reserved ${daily.length} puzzles for the daily pool`);
 console.log(`Curated ${chosen.length} generated puzzles for the app (of ${bank.length})`);
 
 // ---- player entries: everyone appearing in chosen puzzles + search depth -------
 const usedIds = new Set();
-for (const b of chosen) { usedIds.add(b.answer); b.clues.forEach(c => usedIds.add(c)); }
+for (const b of [...chosen, ...daily]) { usedIds.add(b.answer); b.clues.forEach(c => usedIds.add(c)); }
 // add extra well-known players purely for search/guess depth (good wrong guesses)
 const extras = Object.keys(players)
   .filter(c => !usedIds.has(c) && players[c].minutes >= 9000)
@@ -63,6 +70,9 @@ for (const c of allIds.sort((a, b) => players[a].display.localeCompare(players[b
   plines.push(`  g${c}: [${JSON.stringify(p.display)}, ${JSON.stringify(clubsSummary(c))}, ${JSON.stringify(POSMAP[p.mainPos])}, ${JSON.stringify(flag)}, ${JSON.stringify(TMPOS[fold(p.display)] || p.mainPos)}, ${rating(c)}],`);
 }
 
+const lineFor = (b) =>
+  `  {clues:[${b.clues.map(c => JSON.stringify("g" + c)).join(",")}],answer:${JSON.stringify("g" + b.answer)},valid:[${JSON.stringify("g" + b.answer)}],diff:${JSON.stringify(b.diff)},sharedClubs:[${b.sharedClubs.map(x => JSON.stringify(x)).join(",")}],era:${JSON.stringify(b.era)}},`;
+let dlines = daily.map(lineFor);
 let blines = chosen.map(b =>
   `  {clues:[${b.clues.map(c => JSON.stringify("g" + c)).join(",")}],answer:${JSON.stringify("g" + b.answer)},valid:[${JSON.stringify("g" + b.answer)}],diff:${JSON.stringify(b.diff)},sharedClubs:[${b.sharedClubs.map(s => JSON.stringify(s)).join(",")}],era:${JSON.stringify(b.era)}},`
 );
@@ -82,6 +92,12 @@ ${plines.join("\n")}
 
 export const GEN_BANK = [
 ${blines.join("\n")}
+];
+
+// Reserved for the DAILY mode only — never appears in levels, so daily answers
+// stay fresh relative to the ladder.
+export const GEN_DAILY = [
+${dlines.join("\n")}
 ];
 `;
 fs.writeFileSync("generated.js", file);

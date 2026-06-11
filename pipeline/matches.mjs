@@ -10,6 +10,7 @@
 
 import fs from "fs";
 import { CANON, FLAGS } from "./nationalities.mjs";
+import { PLAYER_FLAGS } from "./players_meta.mjs";
 
 const SEASONS = ["2019-20", "2020-21", "2021-22", "2022-23", "2023-24", "2024-25"];
 const BIG = new Set(["Arsenal", "Chelsea", "Liverpool", "Man City", "Man Utd", "Spurs", "Newcastle"]);
@@ -32,8 +33,11 @@ function parseCSV(text) {
 function displayMap(season) {
   const rows = parseCSV(fs.readFileSync(`raw/${season}.csv`, "utf8"));
   const h = rows[0], iF = h.indexOf("first_name"), iS = h.indexOf("second_name"),
-        iW = h.indexOf("web_name"), iC = h.indexOf("now_cost");
-  const m = {}, cost = {};
+        iW = h.indexOf("web_name"), iC = h.indexOf("now_cost"),
+        iT = h.indexOf("element_type"), iM = h.indexOf("minutes");
+  const m = {}, cost = {}, rating = {};
+  const byType = { 1: [], 2: [], 3: [], 4: [] };   // GK/DEF/MID/FWD groups
+  const recs = [];
   for (const r of rows.slice(1)) {
     if (!r[iF]) continue;
     const full = `${r[iF]} ${r[iS]}`.trim();
@@ -48,8 +52,22 @@ function displayMap(season) {
     m[full] = d;
     const c = parseInt(r[iC] || "0", 10);
     cost[full] = c; cost[d] = c;
+    const t = parseInt(r[iT] || "3", 10), min = parseInt(r[iM] || "0", 10);
+    if (min > 0 && byType[t]) byType[t].push(c);
+    recs.push({ full, d, c, t });
   }
-  return { m, cost };
+  // position-relative rating: percentile of price WITHIN the position group
+  // (FPL prices defenders/keepers low by design — Rodri is elite among MIDs).
+  for (const t of [1, 2, 3, 4]) byType[t].sort((a, b) => a - b);
+  for (const { full, d, c, t } of recs) {
+    const grp = byType[t] || [];
+    let lo = 0; while (lo < grp.length && grp[lo] < c) lo++;
+    const pct = grp.length ? lo / grp.length : 0.4;
+    const r10 = Math.round(70 + Math.min(pct, 1) * 22);
+    rating[full] = Math.max(rating[full] || 0, r10);
+    rating[d] = Math.max(rating[d] || 0, r10);
+  }
+  return { m, cost, rating };
 }
 
 // FPL price -> prime-ish 70-90 rating band (same shape as the generated bank)
@@ -80,9 +98,10 @@ const tmPos = (name, fb) => TMPOS[fold(name)] || TMPOS[TM_ALIAS[fold(name)]] || 
 
 const matches = [];
 const namePool = new Set();
+const NAME_META = {};   // display name -> { pos, rating, flag }
 
 for (const season of SEASONS) {
-  const { m: dispM, cost } = displayMap(season);
+  const { m: dispM, cost, rating: ratingMapS } = displayMap(season);
   const disp = (full) => { const d = dispM[full] || full; return CANON[d] || d; };
   const rows = parseCSV(fs.readFileSync(`raw/gw-${season}.csv`, "utf8"));
   const h = rows[0];
@@ -101,7 +120,14 @@ for (const season of SEASONS) {
     const k = r[iFix];
     if (!fixtures.has(k)) fixtures.set(k, []);
     fixtures.get(k).push(r);
-    namePool.add(disp(r[iName]));
+    {
+      const nm = disp(r[iName]);
+      namePool.add(nm);
+      const meta = (NAME_META[nm] ||= { pos: null, rating: 0, flag: "" });
+      meta.pos = tmPos(nm, meta.pos || r[iPos]);
+      meta.rating = Math.max(meta.rating, ratingMapS[r[iName]] || ratingMapS[nm] || 0);
+      meta.flag = FLAGS[nm] || PLAYER_FLAGS[nm] || meta.flag || "";
+    }
   }
 
   for (const [fix, rs] of fixtures) {
@@ -147,7 +173,7 @@ for (const season of SEASONS) {
       lineup: xi.map(r => ({
         name: D(r), pos: tmPos(D(r), r[iPos]),
         flag: FLAGS[D(r)] || "⚽",
-        rating: costRating(cost[r[iName]] || cost[D(r)]),
+        rating: ratingMapS[r[iName]] || ratingMapS[D(r)] || 76,
         missing: r === blank1 || r === blank2,
         events: ev(r),
       })),
@@ -168,7 +194,7 @@ for (const m of chosen) {
   if (m.lineup.filter(p => p.missing).length !== 2) { bad++; console.log("blanks!=2"); }
   for (const a of m.answers) if (!namePool.has(a)) { bad++; console.log("answer not in pool", a); }
 }
-fs.writeFileSync("matches_data.json", JSON.stringify({ chosen, namePool: [...namePool].sort() }));
+fs.writeFileSync("matches_data.json", JSON.stringify({ chosen, namePool: [...namePool].sort(), nameMeta: NAME_META }));
 console.log(`Fixtures scanned -> kept ${matches.length} consistent+memorable -> chose ${chosen.length} | verify bad=${bad}`);
 console.log(`Guess pool: ${namePool.size} names`);
 for (const m of chosen.slice(0, 8))

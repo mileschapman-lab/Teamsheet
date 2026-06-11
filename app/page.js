@@ -12,7 +12,7 @@ import {
   MAX_LIVES, GUESSES_PER_PUZZLE,
 } from "../lib/lives";
 import { ECONOMY, valuePerPound } from "../lib/economy";
-import { MATCHES, MATCH_NAMES } from "../data/matches";
+import { MATCHES, MATCH_NAMES, MATCH_META } from "../data/matches";
 
 const DIFFC = { easy: "var(--grass)", medium: "var(--gold)", hard: "var(--red)" };
 
@@ -70,11 +70,21 @@ const freshProfile = () => ({
   collected: 0, seenOnboarding: false,
   day: null, dayResults: [], dayCurrent: 0, dayFinished: false,
   lives: 5, livesAt: Date.now(), levelReached: 0, clearedLevels: [], matchesSolved: [],
+  boosters: { freeze: 1, boost: 2 }, lastDailyPopup: null,
 });
 
 export default function Page() {
   const [profile, setProfile] = useState(null);
   const [tab, setTab] = useState("daily");
+  const [showDailyPopup, setShowDailyPopup] = useState(false);
+  useEffect(() => {
+    if (profile && profile.lastDailyPopup !== todayKey()) setShowDailyPopup(true);
+  }, []);
+  function dismissDailyPopup(play) {
+    setShowDailyPopup(false);
+    setProfile((pr) => ({ ...pr, lastDailyPopup: todayKey() }));
+    if (play) setTab("daily");
+  }
   const matchday = useMemo(() => matchdayNumber(), []);
   const puzzles = useMemo(() => dailyPuzzles(matchday), [matchday]);
 
@@ -113,6 +123,21 @@ export default function Page() {
   return (
     <div className="wrap">
       <Header profile={profile} />
+      {showDailyPopup && (
+        <div className="overlay" onClick={() => dismissDailyPopup(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="center">
+              <div style={{ fontSize: 38 }}>📅</div>
+              <div className="disp" style={{ fontSize: 26 }}>MATCHDAY {matchday}</div>
+              <div className="muted" style={{ marginTop: 4 }}>3 fresh daily puzzles are waiting — keep the streak alive.</div>
+              <div style={{ marginTop: 8, fontWeight: 800 }}>🔥 streak: {profile.streak}</div>
+            </div>
+            <button className="big" onClick={() => dismissDailyPopup(true)} style={{ marginTop: 14, background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>PLAY TODAY'S →</button>
+            <button className="big" onClick={() => dismissDailyPopup(false)} style={{ marginTop: 8, background: "var(--cream)", color: "var(--navy)" }}>LATER</button>
+          </div>
+        </div>
+      )}
+
       <div className="tabs">
         {["daily", "levels", "competitions", "store", "stats"].map((t) => (
           <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
@@ -132,7 +157,7 @@ function Header({ profile }) {
     <div className="hdr">
       <div className="logo disp">THE TEAM SHEET<small>★ THE DAILY FOOTBALL CONNECTIONS GAME ★</small></div>
       <div className="stats">
-        <span className="pill lives">❤️ {profile.lives}/{MAX_LIVES}</span>
+        <button className="pill lives" onClick={() => setTab("store")} style={{ cursor: "pointer" }}>❤️ {profile.lives}/{MAX_LIVES} <b style={{ color: "var(--grass)" }}>＋</b></button>
         <button className="pill" onClick={() => setTab("store")} style={{ cursor: "pointer" }}><span className="coin" />{profile.coins} <b style={{ color: "var(--grass)" }}>＋</b></button>
         <span className="pill">🔥 {profile.streak}</span>
       </div>
@@ -154,7 +179,56 @@ function Onboarding({ onStart }) {
 }
 
 // ---- a reusable single-puzzle player -------------------------------------
-function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses = MAX_GUESSES, hideGiveUp = false, goStore }) {
+
+// Initials clue progression: "S…" -> "R S…" -> "R Sa…" (mononyms just extend)
+function initialsHint(fullName, n) {
+  if (n <= 0) return "";
+  const parts = fullName.trim().split(/\s+/);
+  const sur = parts[parts.length - 1], first = parts[0], mono = parts.length === 1;
+  const surN = mono ? n : (n === 1 ? 1 : n - 1);
+  const f = !mono && n >= 2 ? first[0] + " " : "";
+  return `${f}${sur.slice(0, Math.min(surN, sur.length - 1))}…`;
+}
+
+
+// ---- puzzle timer: difficulty-based countdown with freeze/boost boosters ----
+function usePuzzleTimer(limitSeconds, active) {
+  const [left, setLeft] = useState(limitSeconds);
+  const [frozen, setFrozen] = useState(false);
+  useEffect(() => {
+    if (!active || frozen || left <= 0) return;
+    const t = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [active, frozen, left <= 0]);
+  return { left, setLeft, frozen, setFrozen, expired: left <= 0 };
+}
+function TimerPill({ left, frozen }) {
+  const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, "0");
+  return <span className={`timerpill ${left <= 10 && !frozen ? "low" : ""}`}>{frozen ? "❄️" : "⏱"} {mm}:{ss}</span>;
+}
+function BoosterButtons({ profile, setProfile, frozen, setFrozen, addTime, goStore, disabled }) {
+  const inv = profile.boosters || { freeze: 0, boost: 0 };
+  function useFreeze() {
+    if (frozen || disabled) return;
+    if ((inv.freeze || 0) <= 0) { goStore && goStore(); return; }
+    setProfile((pr) => ({ ...pr, boosters: { ...inv, freeze: inv.freeze - 1 } }));
+    setFrozen(true);
+  }
+  function useBoost() {
+    if (disabled) return;
+    if ((inv.boost || 0) <= 0) { goStore && goStore(); return; }
+    setProfile((pr) => ({ ...pr, boosters: { ...inv, boost: inv.boost - 1 } }));
+    addTime(ECONOMY.boostSeconds);
+  }
+  return (
+    <span style={{ display: "inline-flex", gap: 6 }}>
+      <button className="btn cream" onClick={useFreeze} disabled={frozen || disabled} style={{ padding: "4px 9px" }}>❄️ {inv.freeze > 0 ? `×${inv.freeze}` : "＋"}</button>
+      <button className="btn cream" onClick={useBoost} disabled={disabled} style={{ padding: "4px 9px" }}>⏱+30 {inv.boost > 0 ? `×${inv.boost}` : "＋"}</button>
+    </span>
+  );
+}
+
+function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses = GUESSES_PER_PUZZLE, hideGiveUp = false, goStore, livesMode }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [guesses, setGuesses] = useState([]);
@@ -171,6 +245,18 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
   const sugg = open ? search(query) : [];
   const solved = guesses.some((g) => g.s !== "wrong");
   const finished = solved || revealed;
+  const timeLimit = ECONOMY.timeLimits[puzzle.diff] || 75;
+  const timer = usePuzzleTimer(timeLimit, !finished);
+  useEffect(() => {
+    if (timer.expired && !finished) {
+      // time up = the puzzle is missed; costs one life in levels
+      if (livesMode) {
+        const sp = spendLife(profile.lives, profile.livesAt);
+        setProfile((pr) => ({ ...pr, lives: sp.lives, livesAt: sp.livesAt }));
+      }
+      setRevealed(true); onResolve(false, "miss");
+    }
+  }, [timer.expired]);
   const remaining = maxGuesses - guesses.length;
 
   function submit(id, free) {
@@ -180,7 +266,14 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
     setGuesses(next); setQuery(""); setOpen(false);
     if (s !== "wrong") {
       onResolve(true, s === "correct_alternate" ? "alt" : "win");
-    } else if (next.length >= maxGuesses) {
+      return;
+    }
+    // in levels, EVERY wrong guess costs a life (daily stays life-free)
+    if (livesMode) {
+      const sp = spendLife(profile.lives, profile.livesAt);
+      setProfile((pr) => ({ ...pr, lives: sp.lives, livesAt: sp.livesAt }));
+    }
+    if (next.length >= maxGuesses) {
       setRevealed(true); onResolve(false, "miss");
     } else { setShake(true); setTimeout(() => setShake(false), 420); }
   }
@@ -208,6 +301,11 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
               ⏱ {puzzle.era}
             </div>
           )}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 10 }}>
+            <TimerPill left={timer.left} frozen={timer.frozen} />
+            <BoosterButtons profile={profile} setProfile={setProfile} frozen={timer.frozen} setFrozen={timer.setFrozen}
+              addTime={(s) => timer.setLeft((v) => v + s)} goStore={goStore} disabled={finished} />
+          </div>
         </div>
         {puzzle.clues.map((id, i) => {
           const p = PLAYERS[id];
@@ -247,7 +345,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
               )}
               <div className="q disp" style={{ fontSize: 24 }}>?</div>
             </div>
-            <div className="hint">{ans[4]} · Premier League{puzzle.diff === "easy" ? ` · rated ${ans[5]}` : ""}{initLetters > 0 ? ` · surname "${surname.slice(0, initLetters)}…"` : ""}{nameClue ? ` · first name ${ans[0].split(" ")[0]}` : ""}</div>
+            <div className="hint">{ans[4]} · Premier League{puzzle.diff === "easy" ? ` · rated ${ans[5]}` : ""}{initLetters > 0 ? ` · name "${initialsHint(ans[0], initLetters)}"` : ""}{nameClue ? ` · first name ${ans[0].split(" ")[0]}` : ""}</div>
           </div>
         )}
       </div>
@@ -291,7 +389,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
               {!hideGiveUp && <button className="btn ghost" onClick={() => { setRevealed(true); onResolve(false, "miss"); }}>Give up</button>}
               <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", marginRight: 4 }}>CLUES {clueBuys}/3</span>{puzzle.diff !== "easy" && <button className="btn cream" onClick={buyCard} disabled={cardClue || clueBuys >= 3}>{cardClue ? "✓ Clubs" : `🏟️ Reveal other clubs · ${ECONOMY.spend.clueClubs}`}</button>}
               {puzzle.diff === "hard" && <button className="btn cream" onClick={buyFlag} disabled={flagBought || clueBuys >= 3}>{flagBought ? "✓ Nationality" : `🏳️ Nationality · ${ECONOMY.spend.clueFlag}`}</button>}
-              <button className="btn gold" onClick={buyInitial} disabled={initLetters >= surname.length - 1 || clueBuys >= 3}>{initLetters > 0 ? `💡 +1 letter · ${ECONOMY.spend.clueHint}` : `💡 Initial · ${ECONOMY.spend.clueHint}`}</button>
+              <button className="btn gold" onClick={buyInitial} disabled={initLetters >= 3 || clueBuys >= 3}>{initLetters > 0 ? `💡 +1 letter · ${ECONOMY.spend.clueHint}` : `💡 Initial · ${ECONOMY.spend.clueHint}`}</button>
               <button className="btn gold" onClick={buyName} disabled={nameClue || clueBuys >= 3}>{nameClue ? "✓ First name" : `🎯 First name · ${ECONOMY.spend.clueName}`}</button>
               <button className="btn gold" onClick={buyReveal} disabled={finished} style={{ background: "var(--red)", color: "var(--cream)" }}>{`🎯 Reveal answer · ${ECONOMY.spend.matchReveal}`}</button>
               {short && (
@@ -407,7 +505,7 @@ function Levels({ profile, setProfile, goStore }) {
   const [activeLevel, setActiveLevel] = useState(null); // index into LEVELS, or null = map
 
   if (activeLevel === null) {
-    return <LevelMap profile={profile} onPlay={(i) => setActiveLevel(i)} />;
+    return <LevelMap profile={profile} setProfile={setProfile} goStore={goStore} onPlay={(i) => setActiveLevel(i)} />;
   }
   return (
     <LevelRun goStore={goStore}
@@ -420,8 +518,12 @@ function Levels({ profile, setProfile, goStore }) {
   );
 }
 
-function LevelMap({ profile, onPlay }) {
+function LevelMap({ profile, setProfile, onPlay, goStore }) {
   const reached = profile.levelReached;
+  const [pending, setPending] = useState(null);        // level index awaiting the pre-level popup
+  const openRef = useRef(null);
+  useEffect(() => { openRef.current?.scrollIntoView({ block: "center", behavior: "instant" }); }, []);
+  const inv = profile.boosters || { freeze: 0, boost: 0 };
   return (
     <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
       <div className="center" style={{ margin: "6px 0 14px" }}>
@@ -432,7 +534,7 @@ function LevelMap({ profile, onPlay }) {
         const open = i === reached;
         const locked = i > reached;
         return (
-          <button key={i} disabled={locked} onClick={() => onPlay(i)}
+          <button key={i} ref={open ? openRef : null} disabled={locked} onClick={() => setPending(i)}
             className="card paper" style={{
               display: "block", width: "100%", textAlign: "left", marginBottom: 12,
               opacity: locked ? .5 : 1, cursor: locked ? "default" : "pointer",
@@ -441,7 +543,7 @@ function LevelMap({ profile, onPlay }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div className="disp" style={{ fontSize: 22, color: "var(--navy)" }}>{lvl.name}
-                  {lvl.type === "match" && <span style={{ fontSize: 11, verticalAlign: "middle", marginLeft: 8, background: "var(--navy)", color: "var(--gold)", borderRadius: 5, padding: "3px 7px", letterSpacing: ".08em" }}>🏟 MATCH</span>}
+                  <span style={{ fontSize: 11, verticalAlign: "middle", marginLeft: 8, background: "var(--navy)", color: lvl.type === "match" ? "var(--gold)" : "var(--cream)", borderRadius: 5, padding: "3px 7px", letterSpacing: ".08em" }}>{lvl.type === "match" ? "🏟 MATCH DAY" : "⚽ TRAINING"}</span>
                 </div>
                 <div className="muted" style={{ marginTop: 2 }}>{lvl.theme}</div>
               </div>
@@ -453,8 +555,29 @@ function LevelMap({ profile, onPlay }) {
         );
       })}
       <p className="muted" style={{ color: "var(--line)", textAlign: "center", fontSize: 11, opacity: .8, marginTop: 6 }}>
-        Connection levels: 3 puzzles, 3 guesses each — miss all 3 and you lose a life. Match levels: name the fixture's two missing players — every 3 wrong guesses costs a life.
+        Connection levels: 3 puzzles, 3 guesses each. Match levels: name the fixture's two missing players. Every wrong guess costs a life, and the clock is ticking.
       </p>
+
+      {pending !== null && (
+        <div className="overlay" onClick={() => setPending(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="center">
+              <div className="disp" style={{ fontSize: 24 }}>{LEVELS[pending].name}{LEVELS[pending].type === "match" ? " 🏟" : ""}</div>
+              <div className="muted" style={{ marginTop: 2 }}>{LEVELS[pending].theme}</div>
+              <div style={{ marginTop: 8 }}>❤️ {profile.lives}/{MAX_LIVES} · ⏱ {LEVELS[pending].type === "match" ? ECONOMY.timeLimits.match : "60-90"}s per puzzle</div>
+            </div>
+            <div className="boostrow">
+              <div><b>❄️ Time Freeze</b> <span className="muted">×{inv.freeze || 0}</span></div>
+              <button className="btn gold" onClick={goStore}>{inv.freeze > 0 ? "READY" : "＋"}</button>
+            </div>
+            <div className="boostrow">
+              <div><b>⏱ Time Boost +{ECONOMY.boostSeconds}s</b> <span className="muted">×{inv.boost || 0}</span></div>
+              <button className="btn gold" onClick={goStore}>{inv.boost > 0 ? "READY" : "＋"}</button>
+            </div>
+            <button className="big" onClick={() => { const i = pending; setPending(null); onPlay(i); }} style={{ marginTop: 14, background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>PLAY →</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -465,6 +588,7 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
   const [step, setStep] = useState(0);     // which puzzle in the set
   const [failed, setFailed] = useState(false);
   const [failedDone, setFailedDone] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [done, setDone] = useState(false);
 
   // live countdown tick for the out-of-lives screen
@@ -493,8 +617,8 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
     if (solved) {
       const isLast = step + 1 >= setPuzzles.length;
       if (isLast) {
-        // level complete
-        setDone(true);
+        // let the PLAYER FOUND banner breathe before the level-complete screen
+        setTimeout(() => setDone(true), 1600);
         setProfile((p) => {
           const firstTime = !(p.clearedLevels || []).includes(levelIndex);
           const reward = ECONOMY.earn.levelComplete + (firstTime ? ECONOMY.earn.firstClearBonus : 0);
@@ -511,16 +635,12 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
         setTimeout(() => setStep((s) => s + 1), 900);
       }
     } else {
-      // whiffed the puzzle → lose a life
-      const s = spendLife(profile.lives, profile.livesAt);
-      setProfile((p) => ({ ...p, lives: s.lives, livesAt: s.livesAt }));
-      if (s.lives <= 0) {
-        setFailed(true); // will show gate on next render via lives<=0
+      // a whiffed puzzle FAILS the level (lives were charged per guess already);
+      // let the reveal banner breathe, then the failed screen — retry = same questions
+      if (profile.lives <= 0) {
+        setFailed(true); // gate shows on next render
       } else {
-        // continue to next puzzle, or end WITHOUT celebration if that was the last
-        const isLast = step + 1 >= setPuzzles.length;
-        if (isLast) { setFailedDone(true); }
-        else setTimeout(() => setStep((s2) => s2 + 1), 900);
+        setTimeout(() => setFailedDone(true), 1700);
       }
     }
   }
@@ -529,9 +649,10 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
     return (
       <div className="center" style={{ marginTop: 26, animation: "pop .4s ease both" }}>
         <div className="disp" style={{ fontSize: 15, letterSpacing: ".16em", color: "var(--red)" }}>FULL TIME</div>
-        <div className="disp" style={{ fontSize: 34, color: "var(--cream)", margin: "8px 0 4px" }}>{level.name} NOT CLEARED</div>
-        <div className="muted" style={{ color: "var(--line)" }}>Solve the final puzzle to clear the level — no coins this time.</div>
-        <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>BACK TO LEVELS →</button>
+        <div className="disp" style={{ fontSize: 34, color: "var(--cream)", margin: "8px 0 4px" }}>{level.name} FAILED</div>
+        <div className="muted" style={{ color: "var(--line)" }}>Same questions when you retry — crack them this time.</div>
+        <button className="big" onClick={() => { setStep(0); setFailedDone(false); setAttempt((a) => a + 1); }} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>↻ RETRY LEVEL</button>
+        <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "10px auto 0", background: "var(--cream)", color: "var(--navy)" }}>BACK TO LEVELS</button>
       </div>
     );
   }
@@ -546,7 +667,12 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "6px 0 8px" }}>
         <button className="btn ghost" onClick={onExit}>← Pages</button>
-        <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <TimerPill left={timer.left} frozen={timer.frozen} />
+          <BoosterButtons profile={profile} setProfile={setProfile} frozen={timer.frozen} setFrozen={timer.setFrozen}
+            addTime={(s) => timer.setLeft((v) => v + s)} goStore={goStore} disabled={solvedAll || timedOut} />
+          <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)}</span>
+        </span>
       </div>
       <div className="progress">
         {setPuzzles.map((_, i) => (
@@ -562,7 +688,7 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
   );
 
   return (
-    <PuzzleView key={step} puzzle={puzzle} profile={profile} setProfile={setProfile} goStore={goStore}
+    <PuzzleView key={`${attempt}-${step}`} puzzle={puzzle} profile={profile} setProfile={setProfile} goStore={goStore} livesMode
       onResolve={(solved) => onResolve(solved)} header={header} maxGuesses={GUESSES_PER_PUZZLE} hideGiveUp />
   );
 }
@@ -576,7 +702,6 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
   const lineup = [...m.lineup].sort((a, b) => (POS_ORDER[a.pos] ?? 9) - (POS_ORDER[b.pos] ?? 9));
   const blanks = m.lineup.filter(p => p.missing);
   const [found, setFound] = useState([]);
-  const [missStreak, setMissStreak] = useState(0);
   const [query, setQuery] = useState("");
   const [shake, setShake] = useState(false);
   const [done, setDone] = useState(false);
@@ -585,7 +710,16 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
   const [revealUsed, setRevealUsed] = useState(false);
   const [short, setShort] = useState(false);
   const [guessLog, setGuessLog] = useState([]);
+  const [timedOut, setTimedOut] = useState(false);
   const solvedAll = found.length >= blanks.length;
+  const timer = usePuzzleTimer(ECONOMY.timeLimits.match, !solvedAll && !done && !timedOut);
+  useEffect(() => {
+    if (timer.expired && !solvedAll && !timedOut) {
+      const s = spendLife(profile.lives, profile.livesAt);
+      setProfile(pr => ({ ...pr, lives: s.lives, livesAt: s.livesAt }));
+      setTimedOut(true);
+    }
+  }, [timer.expired]);
   const clueBuys = (flagClue ? 1 : 0) + initLetters;
   function pay(cost) {
     if (profile.coins < cost) { setShort(true); setTimeout(() => setShort(false), 4000); return false; }
@@ -611,7 +745,6 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
     if (hit) {
       const nf = [...found, g];
       setFound(nf);
-      setMissStreak(0);
       setGuessLog(l => [...l, { n: hit.name, ok: true, free }]);
       if (nf.length >= blanks.length) {
         // stay on the board so the final name is SEEN; CONTINUE advances
@@ -628,16 +761,21 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
     } else {
       setGuessLog(l => [...l, { n: name, ok: false }]);
       setShake(true); setTimeout(() => setShake(false), 420);
-      const ms = missStreak + 1;
-      if (ms >= 3) {
-        setMissStreak(0);
-        const s = spendLife(profile.lives, profile.livesAt);
-        setProfile(p => ({ ...p, lives: s.lives, livesAt: s.livesAt }));
-        // lives<=0 → parent LevelRun shows the OutOfLives gate on re-render
-      } else setMissStreak(ms);
+      const s = spendLife(profile.lives, profile.livesAt);
+      setProfile(p => ({ ...p, lives: s.lives, livesAt: s.livesAt }));
+      // lives<=0 → parent LevelRun shows the OutOfLives gate on re-render
     }
   }
   const sugg = query ? matchSearch(query) : [];
+
+  if (timedOut) return (
+    <div className="center" style={{ marginTop: 26, animation: "pop .4s ease both" }}>
+      <div className="disp" style={{ fontSize: 15, letterSpacing: ".16em", color: "var(--red)" }}>FULL TIME</div>
+      <div className="disp" style={{ fontSize: 34, color: "var(--cream)", margin: "8px 0 4px" }}>OUT OF TIME</div>
+      <div className="muted" style={{ color: "var(--line)" }}>They were {blanks.map(b => b.name).join(" and ")}.</div>
+      <button className="big" onClick={onExit} style={{ maxWidth: 280, margin: "16px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>BACK TO LEVELS →</button>
+    </div>
+  );
 
   if (done) return <LevelComplete level={level} cleared onExit={onExit} profile={profile} setProfile={setProfile} />;
 
@@ -645,7 +783,12 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
     <div style={{ animation: "pop .3s ease both" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "6px 0 8px" }}>
         <button className="btn ghost" onClick={onExit}>← Levels</button>
-        <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)} · {3 - missStreak} guesses</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <TimerPill left={timer.left} frozen={timer.frozen} />
+          <BoosterButtons profile={profile} setProfile={setProfile} frozen={timer.frozen} setFrozen={timer.setFrozen}
+            addTime={(s) => timer.setLeft((v) => v + s)} goStore={goStore} disabled={solvedAll || timedOut} />
+          <span className="muted" style={{ color: "var(--cream)" }}>{"❤️".repeat(profile.lives)}</span>
+        </span>
       </div>
       <div className="center" style={{ margin: "0 0 6px" }}>
         <span className="muted" style={{ letterSpacing: ".16em" }}>{level.name} · REAL FIXTURE
@@ -667,7 +810,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
                 {show && <Flag emoji={p.flag} size={18} />}
                 {!show && flagClue && <Flag emoji={p.flag} size={18} />}
                 <span style={{ fontWeight: show ? 700 : 800, fontSize: 13.5, color: "var(--navy)", flex: 1 }}>
-                  {show ? p.name : (initLetters > 0 ? `❓ surname "${p.name.split(" ").slice(-1)[0].slice(0, initLetters)}…"` : "❓ who's missing?")}{isFound ? " ✓" : ""}
+                  {show ? p.name : (initLetters > 0 ? `❓ "${initialsHint(p.name, initLetters)}"` : "❓ who's missing?")}{isFound ? " ✓" : ""}
                   {show && <span style={{ marginLeft: 6, color: "var(--grass)", fontWeight: 800, fontSize: 12 }}>{p.rating}</span>}
                 </span>
                 <span style={{ fontSize: 12.5 }}>{show ? evIcons(p.events) : (evIcons(p.events) ? "👀 " + evIcons(p.events) : "")}</span>
@@ -675,7 +818,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
             );
           })}
         </div>
-        <p className="muted" style={{ fontSize: 10.5, marginTop: 10, textAlign: "center" }}>⚽ scored · 🅰️ assisted · 🟨🟥 booked — 👀 events belong to a missing player · 3 wrong guesses costs a life</p>
+        <p className="muted" style={{ fontSize: 10.5, marginTop: 10, textAlign: "center" }}>⚽ scored · 🅰️ assisted · 🟨🟥 booked — 👀 events belong to a missing player · every wrong guess costs a ❤️</p>
       </div>
       {solvedAll ? (
         <div className="center" style={{ marginTop: 12, animation: "pop .35s ease both" }}>
@@ -703,17 +846,25 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore })
           style={{ borderRadius: sugg.length ? "11px 11px 0 0" : 11 }} />
         {sugg.length > 0 && (
           <div className="sugg">
-            {sugg.map(n => (
-              <button key={n} onClick={() => submitName(n)}><span className="n">{n}</span></button>
-            ))}
+            {sugg.map(n => {
+              const meta = MATCH_META[n] || {};
+              return (
+                <button key={n} onClick={() => submitName(n)}>
+                  <span className="n" style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                    {meta.flag ? <Flag emoji={meta.flag} size={18} /> : null} {n}
+                  </span>
+                  {(meta.pos || meta.rating) ? <span className="m">{meta.pos}{meta.rating ? ` · ${meta.rating}` : ""}</span> : null}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
       </>)}
       {!solvedAll && (
         <div className="center" style={{ marginTop: 8 }}>
-          <span className="muted" style={{ color: missStreak >= 2 ? "var(--red)" : "var(--cream)", fontWeight: 800 }}>
-            {3 - missStreak} {3 - missStreak === 1 ? "guess" : "guesses"} left before −1 ❤️
+          <span className="muted" style={{ color: profile.lives <= 1 ? "var(--red)" : "var(--cream)", fontWeight: 800 }}>
+            every wrong guess costs ❤️ · {profile.lives} left
           </span>
         </div>
       )}
@@ -792,7 +943,33 @@ function Store({ profile, setProfile }) {
     setProfile((p) => ({ ...p, coins: p.coins + b.coins }));
     setMsg(`(Demo) ${b.name} added ${b.coins.toLocaleString()} coins. Real payment via Stripe comes in the server phase.`);
   }
+  function buyHealth() {
+    if (profile.lives >= MAX_LIVES) { setMsg("Lives already full."); return; }
+    if (profile.coins < ECONOMY.spend.refillAllLives) { setMsg("Not enough coins — grab a bundle below."); return; }
+    const r = refillToFull();
+    setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.refillAllLives, lives: r.lives, livesAt: r.livesAt }));
+    setMsg("❤️ Health boost — lives refilled!");
+  }
   return (
+    <div>
+    <div className="card paper" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+      <div>
+        <div className="disp" style={{ fontSize: 20, color: "var(--navy)" }}>❤️ HEALTH BOOST</div>
+        <div className="muted" style={{ marginTop: 2 }}>Refill all lives instantly · {profile.lives}/{MAX_LIVES} now</div>
+      </div>
+      <button className="btn gold" onClick={buyHealth} disabled={profile.lives >= MAX_LIVES}>{profile.lives >= MAX_LIVES ? "FULL" : `REFILL · ${ECONOMY.spend.refillAllLives}`}</button>
+    </div>
+    <div className="card paper" style={{ marginBottom: 14 }}>
+      <div className="disp" style={{ fontSize: 20, color: "var(--navy)" }}>⚡ BOOSTERS</div>
+      <div className="boostrow">
+        <div><b>❄️ Time Freeze</b> <span className="muted">stops the clock · ×{(profile.boosters || {}).freeze || 0} owned</span></div>
+        <button className="btn gold" onClick={() => buyBooster("freeze", ECONOMY.spend.boosterFreeze)}>{ECONOMY.spend.boosterFreeze}</button>
+      </div>
+      <div className="boostrow">
+        <div><b>⏱ Time Boost</b> <span className="muted">+{ECONOMY.boostSeconds} seconds · ×{(profile.boosters || {}).boost || 0} owned</span></div>
+        <button className="btn gold" onClick={() => buyBooster("boost", ECONOMY.spend.boosterTime)}>{ECONOMY.spend.boosterTime}</button>
+      </div>
+    </div>
     <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
       <div className="center" style={{ margin: "6px 0 14px" }}>
         <span className="muted" style={{ letterSpacing: ".18em", color: "var(--gold)" }}>THE CLUB SHOP</span>
@@ -825,6 +1002,7 @@ function Store({ profile, setProfile }) {
         Prices &amp; coin amounts are starting values, tuned from real play. Real payments are not yet live — these buttons grant coins so the economy can be tested.
       </p>
     </div>
+  </div>
   );
 }
 

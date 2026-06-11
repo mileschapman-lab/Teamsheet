@@ -10,7 +10,7 @@ export const CANON = {
   "Thomas": "Thomas Partey", "Enzo": "Enzo Fernández", "Bernardo": "Bernardo Silva",
   "de Gea": "David de Gea", "Sanchez": "Robert Sánchez", "Mac Allister": "Alexis Mac Allister",
   "Smith Rowe": "Emile Smith Rowe", "Bruno G.": "Bruno Guimarães", "Bruno Guimarães": "Bruno Guimarães",
-  "Rodrigo": "Rodri", "Gabriel": "Gabriel Magalhães", "Ederson": "Ederson", "Fred": "Fred",
+  "Rodrigo": "Rodri", "Rodrigo Hernandez": "Rodri", "Gabriel": "Gabriel Magalhães", "Ederson": "Ederson", "Fred": "Fred",
   "Fabinho": "Fabinho", "Fernandinho": "Fernandinho", "Joelinton": "Joelinton",
   "Emiliano Martínez": "Emiliano Martínez", "Trézéguet": "Trézéguet",
 };

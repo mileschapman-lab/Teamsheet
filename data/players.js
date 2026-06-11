@@ -4,7 +4,7 @@
 // difficulty tracks fame/era. Every puzzle verified single-answer. sharedClubs[i]
 // = the club where clue[i] overlapped with the answer.
 
-import { GEN_PLAYERS, GEN_BANK } from "./generated";
+import { GEN_PLAYERS, GEN_BANK, GEN_DAILY } from "./generated";
 import { MATCHES } from "./matches";
 
 const CURATED_PLAYERS = {
@@ -131,6 +131,18 @@ const CURATED_BANK = [
 // modern bank (2016-now, real FPL data via the content pipeline). ------------
 export const PLAYERS = { ...CURATED_PLAYERS, ...GEN_PLAYERS };
 
+// Same real player in both sets (e.g. Ashley Young): the hand-curated entry is
+// the vetted one — its name, position, rating and flag win for every id that
+// maps to that person, so era-dependent TM positions can't mislabel a card.
+{
+  const byName = {};
+  for (const e of Object.values(CURATED_PLAYERS)) byName[e[0].toLowerCase()] = e;
+  for (const [id, e] of Object.entries(GEN_PLAYERS)) {
+    const c = byName[e[0].toLowerCase()];
+    if (c) PLAYERS[id] = c;
+  }
+}
+
 // No answer repeats across sets: drop generated puzzles whose answer (by name)
 // is already a curated answer — keeps every level's answer a fresh face.
 const _curAns = new Set(CURATED_BANK.map((b) => CURATED_PLAYERS[b.answer][0].toLowerCase()));
@@ -138,6 +150,11 @@ export const BANK = [
   ...CURATED_BANK,
   ...GEN_BANK.filter((b) => !_curAns.has(GEN_PLAYERS[b.answer][0].toLowerCase())),
 ];
+
+// DAILY pool: reserved generated puzzles, disjoint from every level answer —
+// so the daily never repeats a face you've solved on the ladder.
+const _levelAns = new Set(BANK.map((b) => PLAYERS[b.answer][0].toLowerCase()));
+export const DAILY_BANK = GEN_DAILY.filter((b) => !_levelAns.has(GEN_PLAYERS[b.answer][0].toLowerCase()));
 
 // LEVELS: typed and interleaved — two connection levels, then one real-match
 // level, repeating; leftover matches extend the ladder. Connection levels run
@@ -168,11 +185,12 @@ export const LEVELS = [];
   const pushMatch = () => {
     if (mi >= MATCHES.length) return false;
     const m = MATCHES[mi];
-    LEVELS.push({ type: "match", name: "MATCHDAY", theme: `${m.home} ${m.score} ${m.away}`, match: mi });
+    LEVELS.push({ type: "match", name: "MATCH DAY", theme: `${m.home} ${m.score} ${m.away}`, match: mi });
     mi++; return true;
   };
+  // rhythm: 1 training (find the missing player), then 1 match day, repeating
   while (ci + 3 <= _idx.length || mi < MATCHES.length) {
-    let moved = pushConnect(); if (ci + 3 <= _idx.length) moved = pushConnect() || moved;
+    let moved = pushConnect();
     moved = pushMatch() || moved;
     if (!moved) break;
   }
