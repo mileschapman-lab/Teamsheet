@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { PLAYERS, POSNAME, BANK, LEVELS } from "../data/players";
 import {
   search, matchdayNumber, dailyPuzzles, checkGuess,
@@ -30,6 +31,17 @@ const FLAG_CODE = {
   "🇨🇲": "cm", "🇬🇦": "ga", "🇳🇿": "nz", "🇺🇸": "us", "🇬🇧": "gb", "🇹🇹": "tt",
   "🏴󠁧󠁢󠁳󠁣󠁴󠁿": "gb-sct", "🏴󠁧󠁢󠁷󠁬󠁳󠁿": "gb-wls",
 };
+
+// Popups render via portal: an animated ancestor's transform otherwise becomes
+// the containing block for position:fixed and strands the modal off-screen.
+function Overlay({ onClose, children }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="overlay" onClick={onClose}>{children}</div>,
+    document.body
+  );
+}
+
 function Flag({ emoji, size = 30 }) {
   if (!emoji || emoji === "⚽") return null;   // unknown nationality: show nothing, not a placeholder
   const code = FLAG_CODE[emoji];
@@ -124,7 +136,7 @@ export default function Page() {
     <div className="wrap">
       <Header profile={profile} />
       {showDailyPopup && (
-        <div className="overlay" onClick={() => dismissDailyPopup(false)}>
+        <Overlay onClose={() => dismissDailyPopup(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="center">
               <div style={{ fontSize: 38 }}>📅</div>
@@ -135,7 +147,7 @@ export default function Page() {
             <button className="big" onClick={() => dismissDailyPopup(true)} style={{ marginTop: 14, background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>PLAY TODAY'S →</button>
             <button className="big" onClick={() => dismissDailyPopup(false)} style={{ marginTop: 8, background: "var(--cream)", color: "var(--navy)" }}>LATER</button>
           </div>
-        </div>
+        </Overlay>
       )}
 
       <div className="tabs">
@@ -559,7 +571,7 @@ function LevelMap({ profile, setProfile, onPlay, goStore }) {
       </p>
 
       {pending !== null && (
-        <div className="overlay" onClick={() => setPending(null)}>
+        <Overlay onClose={() => setPending(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="center">
               <div className="disp" style={{ fontSize: 24 }}>{LEVELS[pending].name}{LEVELS[pending].type === "match" ? " 🏟" : ""}</div>
@@ -576,7 +588,7 @@ function LevelMap({ profile, setProfile, onPlay, goStore }) {
             </div>
             <button className="big" onClick={() => { const i = pending; setPending(null); onPlay(i); }} style={{ marginTop: 14, background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>PLAY →</button>
           </div>
-        </div>
+        </Overlay>
       )}
     </div>
   );
