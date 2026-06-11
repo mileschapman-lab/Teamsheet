@@ -24,6 +24,11 @@ const FLAG_CODE = {
   "🇧🇪": "be", "🇦🇷": "ar", "🇨🇮": "ci", "🇪🇬": "eg", "🇫🇮": "fi",
   "🇰🇷": "kr", "🇭🇷": "hr", "🇩🇰": "dk", "🇸🇪": "se", "🇩🇿": "dz", "🇹🇬": "tg",
   "🇦🇺": "au", "🇧🇦": "ba", "🇧🇷": "br", "🇬🇭": "gh", "🇵🇹": "pt",
+  "🇳🇴": "no", "🇨🇭": "ch", "🇸🇰": "sk", "🇵🇱": "pl", "🇵🇾": "py", "🇪🇨": "ec",
+  "🇺🇦": "ua", "🇯🇵": "jp", "🇮🇹": "it", "🇭🇺": "hu", "🇨🇴": "co", "🇲🇽": "mx",
+  "🇮🇸": "is", "🇯🇲": "jm", "🇳🇬": "ng", "🇲🇱": "ml", "🇻🇪": "ve", "🇿🇼": "zw",
+  "🇨🇲": "cm", "🇬🇦": "ga", "🇳🇿": "nz", "🇺🇸": "us", "🇬🇧": "gb", "🇹🇹": "tt",
+  "🏴󠁧󠁢󠁳󠁣󠁴󠁿": "gb-sct", "🏴󠁧󠁢󠁷󠁬󠁳󠁿": "gb-wls",
 };
 function Flag({ emoji, size = 30 }) {
   if (!emoji || emoji === "⚽") return null;   // unknown nationality: show nothing, not a placeholder
@@ -128,7 +133,7 @@ function Header({ profile }) {
       <div className="logo disp">THE TEAM SHEET<small>★ THE DAILY FOOTBALL CONNECTIONS GAME ★</small></div>
       <div className="stats">
         <span className="pill lives">❤️ {profile.lives}/{MAX_LIVES}</span>
-        <span className="pill"><span className="coin" />{profile.coins}</span>
+        <button className="pill" onClick={() => setTab("store")} style={{ cursor: "pointer" }}><span className="coin" />{profile.coins} <b style={{ color: "var(--grass)" }}>＋</b></button>
         <span className="pill">🔥 {profile.streak}</span>
       </div>
     </div>
@@ -139,9 +144,9 @@ function Onboarding({ onStart }) {
   return (
     <div className="ob paper">
       <h2>HOW TO PLAY</h2>
-      <div className="step"><span className="n">1</span><div className="t"><b>Read the team sheet</b><p>You're shown three real footballers — presented like collectible cards.</p></div></div>
-      <div className="step"><span className="n">2</span><div className="t"><b>Name the missing player</b><p>One player was a teammate of all three. Type their name — pick from the list.</p></div></div>
-      <div className="step"><span className="n">3</span><div className="t"><b>Any correct link counts</b><p>If more than one player genuinely links all three, any of them is accepted.</p></div></div>
+      <div className="step"><span className="n">1</span><div className="t"><b>Read the team sheet</b><p>You're shown four real footballers — presented like collectible cards.</p></div></div>
+      <div className="step"><span className="n">2</span><div className="t"><b>Name the missing player</b><p>One player was a teammate of all four. Type their name — pick from the list.</p></div></div>
+      <div className="step"><span className="n">3</span><div className="t"><b>Any correct link counts</b><p>If more than one player genuinely links all four, any of them is accepted.</p></div></div>
       <div className="step"><span className="n">4</span><div className="t"><b>Come back daily</b><p>Three new puzzles every day. Keep your streak alive and climb the levels.</p></div></div>
       <button className="big" onClick={onStart} style={{ marginTop: 16 }}>START PLAYING →</button>
     </div>
@@ -156,6 +161,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
   const [revealed, setRevealed] = useState(false);
   const [shake, setShake] = useState(false);
   const [posClue, setPosClue] = useState(false);
+  const [nameClue, setNameClue] = useState(false);
   const [cardClue, setCardClue] = useState(false);
   const inputRef = useRef(null);
 
@@ -178,6 +184,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
   }
   function buyCard() { if (profile.coins >= ECONOMY.spend.clueClubs && !cardClue) { setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.clueClubs })); setCardClue(true); } }
   function buyPos() { if (profile.coins >= ECONOMY.spend.clueHint && !posClue) { setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.clueHint })); setPosClue(true); } }
+  function buyName() { if (profile.coins >= ECONOMY.spend.clueName && !nameClue) { setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.clueName })); setNameClue(true); } }
 
   return (
     <div style={{ animation: "pop .3s ease both" }}>
@@ -185,7 +192,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
       <div className="card paper" style={{ animation: shake ? "shake .42s" : "none" }}>
         <div className="center" style={{ marginBottom: 14 }}>
           <div className="disp" style={{ fontSize: 23, color: "var(--navy)" }}>FIND THE MISSING PLAYER</div>
-          <div className="muted" style={{ marginTop: 6 }}>One player played with <b style={{ color: "var(--navy)" }}>all three</b>. Who links them?</div>
+          <div className="muted" style={{ marginTop: 6 }}>One player played with <b style={{ color: "var(--navy)" }}>all four</b>. Who links them?</div>
           {puzzle.era && (
             <div style={{ display: "inline-block", marginTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "var(--navyDeep)", background: "var(--paperDk)", border: "2px solid var(--line)", borderRadius: 999, padding: "4px 12px" }}>
               ⏱ {puzzle.era}
@@ -226,7 +233,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
               <div className="sflag" style={{ width: 44, height: 44 }}><Flag emoji={ans[3]} size={36} /></div>
               <div className="q disp" style={{ fontSize: 24 }}>?</div>
             </div>
-            <div className="hint">{ans[4]} · Premier League{puzzle.diff === "easy" ? ` · rated ${ans[5]}` : ""}{posClue ? ` · surname starts "${ans[0].split(" ").slice(-1)[0][0]}"` : ""}</div>
+            <div className="hint">{ans[4]} · Premier League{puzzle.diff === "easy" ? ` · rated ${ans[5]}` : ""}{posClue ? ` · surname starts "${ans[0].split(" ").slice(-1)[0][0]}"` : ""}{nameClue ? ` · first name ${ans[0].split(" ")[0]}` : ""}</div>
           </div>
         )}
       </div>
@@ -268,8 +275,9 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
             <span className="muted" style={{ color: "var(--cream)" }}>{remaining} guess{remaining !== 1 ? "es" : ""} left</span>
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
               {!hideGiveUp && <button className="btn ghost" onClick={() => { setRevealed(true); onResolve(false, "miss"); }}>Give up</button>}
-              {puzzle.diff !== "easy" && <button className="btn cream" onClick={buyCard} disabled={cardClue || profile.coins < ECONOMY.spend.clueClubs}>{cardClue ? "Clubs shown" : `🏟️ Shared clubs · ${ECONOMY.spend.clueClubs}`}</button>}
-              <button className="btn gold" onClick={buyPos} disabled={posClue || profile.coins < ECONOMY.spend.clueHint}>{posClue ? "Clue used" : `💡 Hint · ${ECONOMY.spend.clueHint}`}</button>
+              <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", marginRight: 4 }}>CLUES {(cardClue?1:0)+(posClue?1:0)+(nameClue?1:0)}/3</span>{puzzle.diff !== "easy" && <button className="btn cream" onClick={buyCard} disabled={cardClue || profile.coins < ECONOMY.spend.clueClubs}>{cardClue ? "Clubs shown" : `🏟️ Shared clubs · ${ECONOMY.spend.clueClubs}`}</button>}
+              <button className="btn gold" onClick={buyPos} disabled={posClue || profile.coins < ECONOMY.spend.clueHint}>{posClue ? "✓ Initial" : `💡 Initial · ${ECONOMY.spend.clueHint}`}</button>
+              <button className="btn gold" onClick={buyName} disabled={nameClue || profile.coins < ECONOMY.spend.clueName}>{nameClue ? "✓ First name" : `🎯 First name · ${ECONOMY.spend.clueName}`}</button>
             </div>
           </div>
         </>
@@ -283,7 +291,7 @@ function Outcome({ solved, alt, ans }) {
     <div className="outcome" style={{ background: solved ? "var(--gold)" : "var(--cream)" }}>
       <div className="disp" style={{ fontSize: 26, color: "var(--navy)" }}>{solved ? (alt ? "SHARP ONE!" : "PLAYER FOUND!") : "MISSED IT"}</div>
       <div className="muted" style={{ color: solved ? "var(--navyDeep)" : "var(--dim)", marginTop: 5 }}>
-        {solved ? (alt ? `Also played with all three. We had ${ans[0]}.` : `${ans[0]} — nice one.`) : `The missing player was ${ans[0]}.`}
+        {solved ? (alt ? `Also played with all four. We had ${ans[0]}.` : `${ans[0]} — nice one.`) : `The missing player was ${ans[0]}.`}
       </div>
     </div>
   );
@@ -431,7 +439,7 @@ function LevelMap({ profile, onPlay }) {
 
 function LevelRun({ levelIndex, profile, setProfile, onExit }) {
   const level = LEVELS[levelIndex];
-  const setPuzzles = level.puzzles.map((idx) => BANK[idx]);
+  const setPuzzles = (level.puzzles || []).map((idx) => BANK[idx]);   // match levels have no puzzles array
   const [step, setStep] = useState(0);     // which puzzle in the set
   const [failed, setFailed] = useState(false);
   const [failedDone, setFailedDone] = useState(false);
@@ -547,9 +555,22 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
   const [query, setQuery] = useState("");
   const [shake, setShake] = useState(false);
   const [done, setDone] = useState(false);
+  const [flagClue, setFlagClue] = useState(false);
+  const [initClue, setInitClue] = useState(false);
+  const [revealUsed, setRevealUsed] = useState(false);
   const solvedAll = found.length >= blanks.length;
+  function buyFlagClue() { if (!flagClue && profile.coins >= ECONOMY.spend.matchFlag) { setProfile(p => ({ ...p, coins: p.coins - ECONOMY.spend.matchFlag })); setFlagClue(true); } }
+  function buyInitClue() { if (!initClue && profile.coins >= ECONOMY.spend.matchInitial) { setProfile(p => ({ ...p, coins: p.coins - ECONOMY.spend.matchInitial })); setInitClue(true); } }
+  function buyReveal() {
+    if (revealUsed || profile.coins < ECONOMY.spend.matchReveal) return;
+    const next = blanks.find(b => !found.includes(matchNorm(b.name)));
+    if (!next) return;
+    setProfile(p => ({ ...p, coins: p.coins - ECONOMY.spend.matchReveal }));
+    setRevealUsed(true);
+    submitName(next.name, true);
+  }
 
-  function submit(name) {
+  function submitName(name, free) {
     if (!name || done) return;
     const g = matchNorm(name);
     setQuery("");
@@ -610,8 +631,9 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "2px solid var(--navy)", borderRadius: 9, background: p.missing ? "var(--gold)" : "var(--cream)", borderStyle: p.missing && !isFound ? "dashed" : "solid" }}>
                 <span className="disp" style={{ fontSize: 11, color: "var(--navy)", background: "var(--paperDk)", border: "1.5px solid var(--line)", borderRadius: 5, padding: "2px 6px", minWidth: 38, textAlign: "center" }}>{p.pos}</span>
                 {show && <Flag emoji={p.flag} size={18} />}
+                {!show && flagClue && <Flag emoji={p.flag} size={18} />}
                 <span style={{ fontWeight: show ? 700 : 800, fontSize: 13.5, color: "var(--navy)", flex: 1 }}>
-                  {show ? p.name : "❓ who's missing?"}{isFound ? " ✓" : ""}
+                  {show ? p.name : (initClue ? `❓ surname starts "${p.name.split(" ").slice(-1)[0][0]}"` : "❓ who's missing?")}{isFound ? " ✓" : ""}
                   {show && <span style={{ marginLeft: 6, color: "var(--grass)", fontWeight: 800, fontSize: 12 }}>{p.rating}</span>}
                 </span>
                 <span style={{ fontSize: 12.5 }}>{show ? evIcons(p.events) : (evIcons(p.events) ? "👀 " + evIcons(p.events) : "")}</span>
@@ -621,16 +643,22 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
         </div>
         <p className="muted" style={{ fontSize: 10.5, marginTop: 10, textAlign: "center" }}>⚽ scored · 🅰️ assisted · 🟨🟥 booked — 👀 events belong to a missing player · 3 wrong guesses costs a life</p>
       </div>
+      <div style={{ display: "flex", gap: 7, justifyContent: "center", flexWrap: "wrap", margin: "10px 0 2px" }}>
+        <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", color: "var(--line)" }}>CLUES {(flagClue?1:0)+(initClue?1:0)+(revealUsed?1:0)}/3</span>
+        <button className="btn cream" onClick={buyFlagClue} disabled={flagClue || profile.coins < ECONOMY.spend.matchFlag}>{flagClue ? "✓ Flags" : `🏳️ Flags · ${ECONOMY.spend.matchFlag}`}</button>
+        <button className="btn gold" onClick={buyInitClue} disabled={initClue || profile.coins < ECONOMY.spend.matchInitial}>{initClue ? "✓ Initials" : `💡 Initials · ${ECONOMY.spend.matchInitial}`}</button>
+        <button className="btn gold" onClick={buyReveal} disabled={revealUsed || solvedAll || profile.coins < ECONOMY.spend.matchReveal}>{revealUsed ? "✓ Revealed" : `🎯 Reveal one · ${ECONOMY.spend.matchReveal}`}</button>
+      </div>
       <div className="ibox">
         <input value={query} autoComplete="off"
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && sugg[0]) submit(sugg[0]); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && sugg[0]) submitName(sugg[0]); }}
           placeholder={`Name ${m.featured}'s missing players…`}
           style={{ borderRadius: sugg.length ? "11px 11px 0 0" : 11 }} />
         {sugg.length > 0 && (
           <div className="sugg">
             {sugg.map(n => (
-              <button key={n} onClick={() => submit(n)}><span className="n">{n}</span></button>
+              <button key={n} onClick={() => submitName(n)}><span className="n">{n}</span></button>
             ))}
           </div>
         )}

@@ -5,6 +5,8 @@
 // can never collide with curated keys.
 
 import fs from "fs";
+import { DISPLAY_FIX, PLAYER_FLAGS } from "./players_meta.mjs";
+import { FLAGS as MATCH_FLAGS } from "./nationalities.mjs";
 
 const { bank, players } = JSON.parse(fs.readFileSync("bank_generated.json", "utf8"));
 const POSMAP = { GK: "GK", DEF: "DF", MID: "MF", FWD: "FW" };
@@ -48,10 +50,17 @@ function rating(c) {
 }
 function clubsSummary(c) { return Object.keys(players[c].clubs).join(" / "); }
 
+// canonical display + flags (confident-only; absent = hidden in app)
+for (const c of allIds) {
+  const p = players[c];
+  p.display = DISPLAY_FIX[p.display] || p.display;
+  if (p.display === "Martinez") p.display = p.mainPos === "GK" ? "Emiliano Martínez" : "Lisandro Martínez";
+}
 let plines = [];
 for (const c of allIds.sort((a, b) => players[a].display.localeCompare(players[b].display))) {
   const p = players[c];
-  plines.push(`  g${c}: [${JSON.stringify(p.display)}, ${JSON.stringify(clubsSummary(c))}, ${JSON.stringify(POSMAP[p.mainPos])}, "⚽", ${JSON.stringify(TMPOS[fold(p.display)] || p.mainPos)}, ${rating(c)}],`);
+  const flag = PLAYER_FLAGS[p.display] || MATCH_FLAGS[p.display] || "";
+  plines.push(`  g${c}: [${JSON.stringify(p.display)}, ${JSON.stringify(clubsSummary(c))}, ${JSON.stringify(POSMAP[p.mainPos])}, ${JSON.stringify(flag)}, ${JSON.stringify(TMPOS[fold(p.display)] || p.mainPos)}, ${rating(c)}],`);
 }
 
 let blines = chosen.map(b =>
