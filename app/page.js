@@ -118,8 +118,8 @@ export default function Page() {
           <button key={t} className={`tab ${tab === t ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} />}
-      {tab === "levels" && <Levels profile={profile} setProfile={setProfile} />}
+      {tab === "daily" && <Daily profile={profile} setProfile={setProfile} matchday={matchday} puzzles={puzzles} goStore={() => setTab("store")} />}
+      {tab === "levels" && <Levels profile={profile} setProfile={setProfile} goStore={() => setTab("store")} />}
       {tab === "competitions" && <Competitions />}
       {tab === "store" && <Store profile={profile} setProfile={setProfile} />}
       {tab === "stats" && <Stats profile={profile} />}
@@ -154,15 +154,17 @@ function Onboarding({ onStart }) {
 }
 
 // ---- a reusable single-puzzle player -------------------------------------
-function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses = MAX_GUESSES, hideGiveUp = false }) {
+function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses = MAX_GUESSES, hideGiveUp = false, goStore }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [guesses, setGuesses] = useState([]);
   const [revealed, setRevealed] = useState(false);
   const [shake, setShake] = useState(false);
-  const [posClue, setPosClue] = useState(false);
+  const [initLetters, setInitLetters] = useState(0);   // surname revealed letter-by-letter
   const [nameClue, setNameClue] = useState(false);
   const [cardClue, setCardClue] = useState(false);
+  const [short, setShort] = useState(false);            // not-enough-coins banner
+  const [flagBought, setFlagBought] = useState(false);   // hard puzzles: nationality is a paid clue
   const inputRef = useRef(null);
 
   const ans = PLAYERS[puzzle.answer];
@@ -171,10 +173,10 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
   const finished = solved || revealed;
   const remaining = maxGuesses - guesses.length;
 
-  function submit(id) {
+  function submit(id, free) {
     if (!id || finished) return;
     const s = checkGuess(puzzle, id);
-    const next = [...guesses, { id, s }];
+    const next = [...guesses, { id, s, free }];
     setGuesses(next); setQuery(""); setOpen(false);
     if (s !== "wrong") {
       onResolve(true, s === "correct_alternate" ? "alt" : "win");
@@ -182,9 +184,17 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
       setRevealed(true); onResolve(false, "miss");
     } else { setShake(true); setTimeout(() => setShake(false), 420); }
   }
-  function buyCard() { if (profile.coins >= ECONOMY.spend.clueClubs && !cardClue) { setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.clueClubs })); setCardClue(true); } }
-  function buyPos() { if (profile.coins >= ECONOMY.spend.clueHint && !posClue) { setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.clueHint })); setPosClue(true); } }
-  function buyName() { if (profile.coins >= ECONOMY.spend.clueName && !nameClue) { setProfile((p) => ({ ...p, coins: p.coins - ECONOMY.spend.clueName })); setNameClue(true); } }
+  const surname = ans[0].split(" ").slice(-1)[0];
+  const clueBuys = (cardClue ? 1 : 0) + initLetters + (nameClue ? 1 : 0) + (flagBought ? 1 : 0);
+  function pay(cost) {
+    if (profile.coins < cost) { setShort(true); setTimeout(() => setShort(false), 4000); return false; }
+    setProfile((p) => ({ ...p, coins: p.coins - cost })); return true;
+  }
+  function buyCard() { if (!cardClue && clueBuys < 3 && pay(ECONOMY.spend.clueClubs)) setCardClue(true); }
+  function buyInitial() { if (initLetters < surname.length - 1 && clueBuys < 3 && pay(ECONOMY.spend.clueHint)) setInitLetters(n => n + 1); }
+  function buyName() { if (!nameClue && clueBuys < 3 && pay(ECONOMY.spend.clueName)) setNameClue(true); }
+  function buyFlag() { if (!flagBought && clueBuys < 3 && pay(ECONOMY.spend.clueFlag)) setFlagBought(true); }
+  function buyReveal() { if (!finished && pay(ECONOMY.spend.matchReveal)) submit(puzzle.answer, true); }
 
   return (
     <div style={{ animation: "pop .3s ease both" }}>
@@ -230,10 +240,14 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
         ) : (
           <div className="slot">
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <div className="sflag" style={{ width: 44, height: 44 }}><Flag emoji={ans[3]} size={36} /></div>
+              {(puzzle.diff !== "hard" || flagBought) ? (
+                <div className="sflag" style={{ width: 44, height: 44 }}><Flag emoji={ans[3]} size={36} /></div>
+              ) : (
+                <div className="sflag" style={{ width: 44, height: 44, opacity: .45, display: "grid", placeItems: "center", color: "var(--cream)", fontWeight: 800 }}>🏳️</div>
+              )}
               <div className="q disp" style={{ fontSize: 24 }}>?</div>
             </div>
-            <div className="hint">{ans[4]} · Premier League{puzzle.diff === "easy" ? ` · rated ${ans[5]}` : ""}{posClue ? ` · surname starts "${ans[0].split(" ").slice(-1)[0][0]}"` : ""}{nameClue ? ` · first name ${ans[0].split(" ")[0]}` : ""}</div>
+            <div className="hint">{ans[4]} · Premier League{puzzle.diff === "easy" ? ` · rated ${ans[5]}` : ""}{initLetters > 0 ? ` · surname "${surname.slice(0, initLetters)}…"` : ""}{nameClue ? ` · first name ${ans[0].split(" ")[0]}` : ""}</div>
           </div>
         )}
       </div>
@@ -242,7 +256,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
         <div className="guesses">
           {guesses.map((g, i) => (
             <span key={i} className={`chip ${g.s === "wrong" ? "bad" : "good"}`}>
-              {g.s === "wrong" ? "✕" : "✓"} {PLAYERS[g.id][0]}
+              {g.s === "wrong" ? "✕" : "✓"} {PLAYERS[g.id][0]}{g.free ? <em style={{ fontStyle: "normal", opacity: .7, fontSize: 11 }}> · revealed</em> : null}
               {g.s === "correct_alternate" && <em style={{ fontStyle: "normal", opacity: .75, fontSize: 11 }}>· also correct!</em>}
             </span>
           ))}
@@ -275,9 +289,17 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
             <span className="muted" style={{ color: "var(--cream)" }}>{remaining} guess{remaining !== 1 ? "es" : ""} left</span>
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
               {!hideGiveUp && <button className="btn ghost" onClick={() => { setRevealed(true); onResolve(false, "miss"); }}>Give up</button>}
-              <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", marginRight: 4 }}>CLUES {(cardClue?1:0)+(posClue?1:0)+(nameClue?1:0)}/3</span>{puzzle.diff !== "easy" && <button className="btn cream" onClick={buyCard} disabled={cardClue || profile.coins < ECONOMY.spend.clueClubs}>{cardClue ? "Clubs shown" : `🏟️ Shared clubs · ${ECONOMY.spend.clueClubs}`}</button>}
-              <button className="btn gold" onClick={buyPos} disabled={posClue || profile.coins < ECONOMY.spend.clueHint}>{posClue ? "✓ Initial" : `💡 Initial · ${ECONOMY.spend.clueHint}`}</button>
-              <button className="btn gold" onClick={buyName} disabled={nameClue || profile.coins < ECONOMY.spend.clueName}>{nameClue ? "✓ First name" : `🎯 First name · ${ECONOMY.spend.clueName}`}</button>
+              <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", marginRight: 4 }}>CLUES {clueBuys}/3</span>{puzzle.diff !== "easy" && <button className="btn cream" onClick={buyCard} disabled={cardClue || clueBuys >= 3}>{cardClue ? "✓ Clubs" : `🏟️ Reveal other clubs · ${ECONOMY.spend.clueClubs}`}</button>}
+              {puzzle.diff === "hard" && <button className="btn cream" onClick={buyFlag} disabled={flagBought || clueBuys >= 3}>{flagBought ? "✓ Nationality" : `🏳️ Nationality · ${ECONOMY.spend.clueFlag}`}</button>}
+              <button className="btn gold" onClick={buyInitial} disabled={initLetters >= surname.length - 1 || clueBuys >= 3}>{initLetters > 0 ? `💡 +1 letter · ${ECONOMY.spend.clueHint}` : `💡 Initial · ${ECONOMY.spend.clueHint}`}</button>
+              <button className="btn gold" onClick={buyName} disabled={nameClue || clueBuys >= 3}>{nameClue ? "✓ First name" : `🎯 First name · ${ECONOMY.spend.clueName}`}</button>
+              <button className="btn gold" onClick={buyReveal} disabled={finished} style={{ background: "var(--red)", color: "var(--cream)" }}>{`🎯 Reveal answer · ${ECONOMY.spend.matchReveal}`}</button>
+              {short && (
+                <div style={{ width: "100%", textAlign: "center", marginTop: 6 }}>
+                  <span className="muted" style={{ color: "var(--red)", fontWeight: 800 }}>Not enough coins · </span>
+                  <button className="btn gold" onClick={goStore}>＋ GET COINS</button>
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -298,7 +320,7 @@ function Outcome({ solved, alt, ans }) {
 }
 
 // ---- DAILY mode ----------------------------------------------------------
-function Daily({ profile, setProfile, matchday, puzzles }) {
+function Daily({ profile, setProfile, matchday, puzzles, goStore }) {
   const current = profile.dayCurrent;
   const finishedToday = profile.dayFinished;
 
@@ -343,7 +365,7 @@ function Daily({ profile, setProfile, matchday, puzzles }) {
     </>
   );
 
-  return <PuzzleView key={current} puzzle={puzzle} profile={profile} setProfile={setProfile} onResolve={resolve} header={header} />;
+  return <PuzzleView key={current} puzzle={puzzle} profile={profile} setProfile={setProfile} onResolve={resolve} header={header} goStore={goStore} />;
 }
 
 function DailyDone({ profile, matchday }) {
@@ -381,14 +403,14 @@ function DailyDone({ profile, matchday }) {
 }
 
 // ---- LEVELS mode (progression with lives) --------------------------------
-function Levels({ profile, setProfile }) {
+function Levels({ profile, setProfile, goStore }) {
   const [activeLevel, setActiveLevel] = useState(null); // index into LEVELS, or null = map
 
   if (activeLevel === null) {
     return <LevelMap profile={profile} onPlay={(i) => setActiveLevel(i)} />;
   }
   return (
-    <LevelRun
+    <LevelRun goStore={goStore}
       key={activeLevel}
       levelIndex={activeLevel}
       profile={profile}
@@ -437,7 +459,7 @@ function LevelMap({ profile, onPlay }) {
   );
 }
 
-function LevelRun({ levelIndex, profile, setProfile, onExit }) {
+function LevelRun({ levelIndex, profile, setProfile, onExit, goStore }) {
   const level = LEVELS[levelIndex];
   const setPuzzles = (level.puzzles || []).map((idx) => BANK[idx]);   // match levels have no puzzles array
   const [step, setStep] = useState(0);     // which puzzle in the set
@@ -464,7 +486,7 @@ function LevelRun({ levelIndex, profile, setProfile, onExit }) {
   }
 
   if (level.type === "match") {
-    return <MatchLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} />;
+    return <MatchLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} goStore={goStore} />;
   }
 
   function onResolve(solved) {
@@ -540,15 +562,18 @@ function LevelRun({ levelIndex, profile, setProfile, onExit }) {
   );
 
   return (
-    <PuzzleView key={step} puzzle={puzzle} profile={profile} setProfile={setProfile}
+    <PuzzleView key={step} puzzle={puzzle} profile={profile} setProfile={setProfile} goStore={goStore}
       onResolve={(solved) => onResolve(solved)} header={header} maxGuesses={GUESSES_PER_PUZZLE} hideGiveUp />
   );
 }
 
 
 // ---- MATCH LEVEL: real fixture, name the missing two; 3 misses = 1 life ----
-function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
+const POS_ORDER = { GK: 0, LB: 1, LWB: 2, CB: 3, DEF: 4, RB: 5, RWB: 6, CDM: 7, CM: 8, MID: 9, LM: 10, RM: 11, CAM: 12, LW: 13, RW: 14, SS: 15, FWD: 16, ST: 17 };
+
+function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore }) {
   const m = MATCHES[level.match];
+  const lineup = [...m.lineup].sort((a, b) => (POS_ORDER[a.pos] ?? 9) - (POS_ORDER[b.pos] ?? 9));
   const blanks = m.lineup.filter(p => p.missing);
   const [found, setFound] = useState([]);
   const [missStreak, setMissStreak] = useState(0);
@@ -556,16 +581,23 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
   const [shake, setShake] = useState(false);
   const [done, setDone] = useState(false);
   const [flagClue, setFlagClue] = useState(false);
-  const [initClue, setInitClue] = useState(false);
+  const [initLetters, setInitLetters] = useState(0);
   const [revealUsed, setRevealUsed] = useState(false);
+  const [short, setShort] = useState(false);
+  const [guessLog, setGuessLog] = useState([]);
   const solvedAll = found.length >= blanks.length;
-  function buyFlagClue() { if (!flagClue && profile.coins >= ECONOMY.spend.matchFlag) { setProfile(p => ({ ...p, coins: p.coins - ECONOMY.spend.matchFlag })); setFlagClue(true); } }
-  function buyInitClue() { if (!initClue && profile.coins >= ECONOMY.spend.matchInitial) { setProfile(p => ({ ...p, coins: p.coins - ECONOMY.spend.matchInitial })); setInitClue(true); } }
+  const clueBuys = (flagClue ? 1 : 0) + initLetters;
+  function pay(cost) {
+    if (profile.coins < cost) { setShort(true); setTimeout(() => setShort(false), 4000); return false; }
+    setProfile(p => ({ ...p, coins: p.coins - cost })); return true;
+  }
+  function buyFlagClue() { if (!flagClue && clueBuys < 3 && pay(ECONOMY.spend.matchFlag)) setFlagClue(true); }
+  function buyInitClue() { if (clueBuys < 3 && pay(ECONOMY.spend.matchInitial)) setInitLetters(n => n + 1); }
   function buyReveal() {
-    if (revealUsed || profile.coins < ECONOMY.spend.matchReveal) return;
+    if (revealUsed) return;
     const next = blanks.find(b => !found.includes(matchNorm(b.name)));
     if (!next) return;
-    setProfile(p => ({ ...p, coins: p.coins - ECONOMY.spend.matchReveal }));
+    if (!pay(ECONOMY.spend.matchReveal)) return;
     setRevealUsed(true);
     submitName(next.name, true);
   }
@@ -580,8 +612,9 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
       const nf = [...found, g];
       setFound(nf);
       setMissStreak(0);
+      setGuessLog(l => [...l, { n: hit.name, ok: true, free }]);
       if (nf.length >= blanks.length) {
-        setDone(true);
+        // stay on the board so the final name is SEEN; CONTINUE advances
         setProfile(p => {
           const firstTime = !(p.clearedLevels || []).includes(levelIndex);
           const reward = ECONOMY.earn.levelComplete + (firstTime ? ECONOMY.earn.firstClearBonus : 0);
@@ -593,6 +626,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
         });
       }
     } else {
+      setGuessLog(l => [...l, { n: name, ok: false }]);
       setShake(true); setTimeout(() => setShake(false), 420);
       const ms = missStreak + 1;
       if (ms >= 3) {
@@ -624,7 +658,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
           <div className="muted" style={{ fontSize: 11, letterSpacing: ".1em", marginTop: 2 }}>{m.featured} XI — name the missing two</div>
         </div>
         <div style={{ marginTop: 13, display: "grid", gap: 6 }}>
-          {m.lineup.map((p, i) => {
+          {lineup.map((p, i) => {
             const isFound = p.missing && found.includes(matchNorm(p.name));
             const show = !p.missing || isFound;
             return (
@@ -633,7 +667,7 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
                 {show && <Flag emoji={p.flag} size={18} />}
                 {!show && flagClue && <Flag emoji={p.flag} size={18} />}
                 <span style={{ fontWeight: show ? 700 : 800, fontSize: 13.5, color: "var(--navy)", flex: 1 }}>
-                  {show ? p.name : (initClue ? `❓ surname starts "${p.name.split(" ").slice(-1)[0][0]}"` : "❓ who's missing?")}{isFound ? " ✓" : ""}
+                  {show ? p.name : (initLetters > 0 ? `❓ surname "${p.name.split(" ").slice(-1)[0].slice(0, initLetters)}…"` : "❓ who's missing?")}{isFound ? " ✓" : ""}
                   {show && <span style={{ marginLeft: 6, color: "var(--grass)", fontWeight: 800, fontSize: 12 }}>{p.rating}</span>}
                 </span>
                 <span style={{ fontSize: 12.5 }}>{show ? evIcons(p.events) : (evIcons(p.events) ? "👀 " + evIcons(p.events) : "")}</span>
@@ -643,12 +677,24 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
         </div>
         <p className="muted" style={{ fontSize: 10.5, marginTop: 10, textAlign: "center" }}>⚽ scored · 🅰️ assisted · 🟨🟥 booked — 👀 events belong to a missing player · 3 wrong guesses costs a life</p>
       </div>
+      {solvedAll ? (
+        <div className="center" style={{ marginTop: 12, animation: "pop .35s ease both" }}>
+          <div className="disp" style={{ fontSize: 17, letterSpacing: ".14em", color: "var(--gold)" }}>★ FULL TEAM SHEET ★</div>
+          <button className="big" onClick={() => setDone(true)} style={{ maxWidth: 280, margin: "10px auto 0", background: "var(--gold)", color: "var(--navy)", boxShadow: "3px 3px 0 var(--navy)" }}>CONTINUE →</button>
+        </div>
+      ) : (<>
       <div style={{ display: "flex", gap: 7, justifyContent: "center", flexWrap: "wrap", margin: "10px 0 2px" }}>
-        <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", color: "var(--line)" }}>CLUES {(flagClue?1:0)+(initClue?1:0)+(revealUsed?1:0)}/3</span>
-        <button className="btn cream" onClick={buyFlagClue} disabled={flagClue || profile.coins < ECONOMY.spend.matchFlag}>{flagClue ? "✓ Flags" : `🏳️ Flags · ${ECONOMY.spend.matchFlag}`}</button>
-        <button className="btn gold" onClick={buyInitClue} disabled={initClue || profile.coins < ECONOMY.spend.matchInitial}>{initClue ? "✓ Initials" : `💡 Initials · ${ECONOMY.spend.matchInitial}`}</button>
-        <button className="btn gold" onClick={buyReveal} disabled={revealUsed || solvedAll || profile.coins < ECONOMY.spend.matchReveal}>{revealUsed ? "✓ Revealed" : `🎯 Reveal one · ${ECONOMY.spend.matchReveal}`}</button>
+        <span className="muted" style={{ fontSize: 10.5, alignSelf: "center", color: "var(--line)" }}>CLUES {clueBuys}/3</span>
+        <button className="btn cream" onClick={buyFlagClue} disabled={flagClue || clueBuys >= 3}>{flagClue ? "✓ Flags" : `🏳️ Flags · ${ECONOMY.spend.matchFlag}`}</button>
+        <button className="btn gold" onClick={buyInitClue} disabled={clueBuys >= 3}>{initLetters > 0 ? `💡 +1 letter · ${ECONOMY.spend.matchInitial}` : `💡 Initials · ${ECONOMY.spend.matchInitial}`}</button>
+        <button className="btn gold" onClick={buyReveal} disabled={revealUsed || solvedAll} style={{ background: "var(--red)", color: "var(--cream)" }}>{revealUsed ? "✓ Revealed" : `🎯 Reveal one · ${ECONOMY.spend.matchReveal}`}</button>
       </div>
+      {short && (
+        <div className="center" style={{ marginTop: 6 }}>
+          <span className="muted" style={{ color: "var(--red)", fontWeight: 800 }}>Not enough coins · </span>
+          <button className="btn gold" onClick={goStore}>＋ GET COINS</button>
+        </div>
+      )}
       <div className="ibox">
         <input value={query} autoComplete="off"
           onChange={(e) => setQuery(e.target.value)}
@@ -663,6 +709,21 @@ function MatchLevel({ level, levelIndex, profile, setProfile, onExit }) {
           </div>
         )}
       </div>
+      </>)}
+      {!solvedAll && (
+        <div className="center" style={{ marginTop: 8 }}>
+          <span className="muted" style={{ color: missStreak >= 2 ? "var(--red)" : "var(--cream)", fontWeight: 800 }}>
+            {3 - missStreak} {3 - missStreak === 1 ? "guess" : "guesses"} left before −1 ❤️
+          </span>
+        </div>
+      )}
+      {guessLog.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
+          {guessLog.map((g, i) => (
+            <span key={i} className={`chip ${g.ok ? "good" : "bad"}`}>{g.ok ? "✓" : "✕"} {g.n}{g.free ? " · revealed" : ""}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
