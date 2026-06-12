@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "smoke": "esbuild app/page.js --bundle --format=cjs --jsx=automatic --loader:.js=jsx --outfile=tests/page.bundle.cjs --external:react --external:react-dom --log-level=error && node tests/smoke.cjs"
+    "smoke": "esbuild app/page.js --bundle --format=cjs --jsx=automatic --loader:.js=jsx --outfile=tests/page.bundle.cjs --external:react --external:react-dom --log-level=error && esbuild data/transfers.js --bundle --format=cjs --outfile=tests/transfers.bundle.cjs --log-level=error && node tests/smoke.cjs && node tests/smoke_legacy.cjs && node tests/gate_trace.cjs"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.0",
-    "eslint": "8.57.0",
+    "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "jsdom": "^29.1.1"
   }

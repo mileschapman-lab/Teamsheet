@@ -15,6 +15,7 @@ import {
 import { ECONOMY, valuePerPound } from "../lib/economy";
 import { MATCHES, MATCH_NAMES, MATCH_META } from "../data/matches";
 import { TRANSFER_BANK, TRANSFER_CLUBS, CLUB_ALIASES } from "../data/transfers";
+import { submitWaitlist, PRIZES } from "../lib/waitlist";
 import { newSeed, challengePuzzles, encodeChallenge, decodeChallenge, verdict, challengeShareText, CHALLENGE_SIZE, POINTS } from "../lib/challenge";
 
 const DIFFC = { easy: "var(--grass)", medium: "var(--gold)", hard: "var(--red)" };
@@ -44,9 +45,17 @@ function Overlay({ onClose, children }) {
   );
 }
 
+function isoFromFlagEmoji(emoji) {
+  // 🇲🇦 = regional indicators M + A -> "ma"; works for every country flag emoji
+  const pts = [...emoji].map((c) => c.codePointAt(0));
+  if (pts.length === 2 && pts.every((x) => x >= 0x1f1e6 && x <= 0x1f1ff)) {
+    return pts.map((x) => String.fromCharCode(97 + x - 0x1f1e6)).join("");
+  }
+  return null;
+}
 function Flag({ emoji, size = 30 }) {
   if (!emoji || emoji === "⚽") return null;   // unknown nationality: show nothing, not a placeholder
-  const code = FLAG_CODE[emoji];
+  const code = FLAG_CODE[emoji] || isoFromFlagEmoji(emoji);
   if (!code) return <span style={{ fontSize: size * 0.7 }}>{emoji}</span>;
   return (
     <img
@@ -140,7 +149,7 @@ export default function Page() {
   if (!profile.seenOnboarding) {
     return (
       <div className="wrap">
-        <Header profile={profile} />
+        <Header profile={profile} setTab={setTab} />
         <Onboarding onStart={() => setProfile({ ...profile, seenOnboarding: true })} />
       </div>
     );
@@ -148,7 +157,7 @@ export default function Page() {
 
   return (
     <div className="wrap">
-      <Header profile={profile} />
+      <Header profile={profile} setTab={setTab} />
       {invite && (
         <Overlay onClose={() => setInvite(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -195,7 +204,7 @@ export default function Page() {
   );
 }
 
-function Header({ profile }) {
+function Header({ profile, setTab }) {
   return (
     <div className="hdr">
       <div className="logo disp">THE TEAM SHEET<small>★ THE DAILY FOOTBALL CONNECTIONS GAME ★</small></div>
@@ -418,7 +427,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
       )}
 
       {finished ? (
-        <Outcome solved={solved} alt={solved && guesses[guesses.length - 1].s === "correct_alternate"} ans={ans} />
+        <Outcome solved={solved} alt={solved && guesses[guesses.length - 1].s === "correct_alternate"} ans={ans} revealAnswer={revealAnswer} />
       ) : (
         <>
           <div className="ibox">
@@ -462,7 +471,7 @@ function PuzzleView({ puzzle, profile, setProfile, onResolve, header, maxGuesses
   );
 }
 
-function Outcome({ solved, alt, ans }) {
+function Outcome({ solved, alt, ans, revealAnswer }) {
   return (
     <div className="outcome" style={{ background: solved ? "var(--gold)" : "var(--cream)" }}>
       <div className="disp" style={{ fontSize: 26, color: "var(--navy)" }}>{solved ? (alt ? "SHARP ONE!" : "PLAYER FOUND!") : "MISSED IT"}</div>
@@ -690,10 +699,10 @@ function LevelRun({ levelIndex, profile, setProfile, onExit, goStore, goChalleng
   }
 
   if (level.type === "match") {
-    return <MatchLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} goStore={goStore} />;
+    return <MatchLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} goStore={goStore} goChallenge={goChallenge} />;
   }
   if (level.type === "transfer") {
-    return <TransferLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} goStore={goStore} />;
+    return <TransferLevel level={level} levelIndex={levelIndex} profile={profile} setProfile={setProfile} onExit={onExit} goStore={goStore} goChallenge={goChallenge} />;
   }
 
   function onResolve(solved) {
@@ -784,7 +793,7 @@ function clubSearch(q) {
   if (CLUB_ALIASES[n]) return [CLUB_ALIASES[n], ...TRANSFER_CLUBS.filter(c => clubNorm(c).includes(n) && c !== CLUB_ALIASES[n])].slice(0, 6);
   return TRANSFER_CLUBS.filter(c => clubNorm(c).includes(n)).slice(0, 6);
 }
-function TransferLevel({ level, levelIndex, profile, setProfile, onExit, goStore }) {
+function TransferLevel({ level, levelIndex, profile, setProfile, onExit, goStore, goChallenge }) {
   const qs = level.qs.map(i => TRANSFER_BANK[i]);
   const [step, setStep] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -908,7 +917,7 @@ function TransferQ({ q, step, total, profile, setProfile, onDone, onExit, goStor
 
 const POS_ORDER = { GK: 0, LB: 1, LWB: 2, CB: 3, DEF: 4, RB: 5, RWB: 6, CDM: 7, CM: 8, MID: 9, LM: 10, RM: 11, CAM: 12, LW: 13, RW: 14, SS: 15, FWD: 16, ST: 17 };
 
-function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore }) {
+function MatchLevel({ level, levelIndex, profile, setProfile, onExit, goStore, goChallenge }) {
   const m = MATCHES[level.match];
   const lineup = [...m.lineup].sort((a, b) => (POS_ORDER[a.pos] ?? 9) - (POS_ORDER[b.pos] ?? 9));
   const blanks = m.lineup.filter(p => p.missing);
@@ -1364,8 +1373,35 @@ function Competitions({ profile, setProfile, challenge, setChallenge, goStore })
   );
 }
 
+function WaitlistForm({ source }) {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState("idle");
+  async function go() {
+    if (state === "busy") return;
+    setState("busy");
+    const r = await submitWaitlist(email, source);
+    setState(r.ok ? "done" : "error");
+  }
+  if (state === "done") return (
+    <div className="center" style={{ animation: "pop .35s ease both", marginTop: 8 }}>
+      <div className="disp" style={{ fontSize: 18, color: "var(--grass)" }}>✓ YOU'RE ON THE LIST</div>
+      <div className="muted" style={{ marginTop: 2 }}>We'll email you the moment the Cup opens.</div>
+    </div>
+  );
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email"
+          placeholder="your@email.com" onKeyDown={(e) => { if (e.key === "Enter") go(); }}
+          style={{ flex: 1, border: "2px solid var(--line)", borderRadius: 10, padding: "10px 12px", fontWeight: 700, background: "var(--cream)", color: "var(--navy)", minWidth: 0 }} />
+        <button className="btn gold" onClick={go} disabled={state === "busy"}>{state === "busy" ? "…" : "JOIN"}</button>
+      </div>
+      {state === "error" && <div className="muted" style={{ color: "var(--red)", marginTop: 5, fontWeight: 800 }}>That email didn't look right — try again.</div>}
+    </div>
+  );
+}
+
 function CompetitionsCup() {
-  const [notify, setNotify] = useState(false);
   return (
     <div style={{ marginTop: 6, animation: "pop .3s ease both" }}>
       <div className="center" style={{ margin: "6px 0 14px" }}>
@@ -1377,6 +1413,23 @@ function CompetitionsCup() {
         <div className="disp" style={{ fontSize: 30, color: "var(--navy)", lineHeight: .95, marginTop: 6 }}>THE WEEKLY CUP</div>
         <div className="muted" style={{ marginTop: 8, fontSize: 14 }}>
           Go head-to-head with players across the country in a weekly football-knowledge competition — and win real prizes.
+        </div>
+
+        <div style={{ borderTop: "2px solid var(--line)", margin: "14px 0 4px", paddingTop: 12, textAlign: "left" }}>
+          <div className="muted" style={{ letterSpacing: ".14em", textAlign: "center", marginBottom: 8 }}>PLANNED LAUNCH PRIZES</div>
+          {PRIZES.map((pz) => (
+            <div key={pz.club} style={{ display: "flex", gap: 10, alignItems: "center", padding: "7px 0", borderBottom: "1px dashed var(--line)" }}>
+              <span style={{ fontSize: 22 }}>{pz.emoji}</span>
+              <div>
+                <div style={{ fontWeight: 800, color: "var(--navy)", fontSize: 13.5 }}>{pz.line}</div>
+                <div className="muted">{pz.extra}</div>
+              </div>
+            </div>
+          ))}
+          <div className="center" style={{ marginTop: 12 }}>
+            <div className="disp" style={{ fontSize: 17, color: "var(--navy)" }}>JOIN THE WAITING LIST</div>
+            <WaitlistForm source="app-compete" />
+          </div>
         </div>
 
         <div style={{ borderTop: "2px solid var(--line)", margin: "16px 0", paddingTop: 16, textAlign: "left" }}>
@@ -1394,9 +1447,10 @@ function CompetitionsCup() {
           </div>
         </div>
 
-        <button className="big" onClick={() => setNotify(true)} disabled={notify} style={{ background: notify ? "var(--grass)" : "var(--navy)" }}>
-          {notify ? "✓ WE'LL LET YOU KNOW" : "NOTIFY ME WHEN IT'S LIVE"}
-        </button>
+        <p className="muted" style={{ fontSize: 10, opacity: .75, marginTop: 12, lineHeight: 1.5 }}>
+          Skill-based competition, not yet open — no entries taken, no payment to join the list.
+          Planned prizes; full terms at launch. 18+, UK. Not affiliated with any club.
+        </p>
       </div>
 
       <p className="muted" style={{ color: "var(--line)", textAlign: "center", marginTop: 14, fontSize: 11, opacity: .8, maxWidth: 340, marginInline: "auto" }}>
